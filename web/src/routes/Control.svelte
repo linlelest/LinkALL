@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { get } from 'svelte/store';
   import { onDestroy } from 'svelte';
   import { t } from '../i18n';
   import { api, apiBase, ApiError } from '../lib/api';
@@ -318,11 +319,11 @@
   {#if showTransfer}
     <div class="border-t border-dark-border bg-dark-panel p-3 text-sm">
       <div class="flex justify-between items-center mb-2">
-        <div class="font-medium">{$t('control.transfer')}</div>
+        <div class="font-medium">{get(t)('control.transfer')}</div>
         <button class="btn-ghost btn-sm" onclick={() => (showTransfer = false)}>×</button>
       </div>
       <div class="space-y-2">
-        <button class="btn-primary w-full" onclick={() => uploadInput?.click()}>{$t('control.transfer.upload')}</button>
+        <button class="btn-primary w-full" onclick={() => uploadInput?.click()}>{get(t)('control.transfer.upload')}</button>
         {#if transfers.length > 0}
           <div class="max-h-48 overflow-auto space-y-1">
             {#each transfers as t}
@@ -336,23 +337,23 @@
                 </div>
                 <div class="flex items-center justify-between mt-1">
                   {#if t.done}
-                    <span class="text-green-400">✓ {$t('common.done')}</span>
+                    <span class="text-green-400">✓ {get(t)('common.done')}</span>
                   {:else if t.err}
                     <span class="text-rose-400">✗ {t.err}</span>
                     <button class="btn-ghost btn-xs" onclick={() => transfers = transfers.filter(x => x.id !== t.id)}>×</button>
                   {:else if t.paused}
-                    <button class="btn-ghost btn-xs" onclick={() => resumeTransfer(t.id)}>{$t('common.resume')}</button>
-                    <button class="btn-ghost btn-xs" onclick={() => cancelTransfer(t.id)}>{$t('common.cancel')}</button>
+                    <button class="btn-ghost btn-xs" onclick={() => resumeTransfer(t.id)}>{get(t)('common.resume')}</button>
+                    <button class="btn-ghost btn-xs" onclick={() => cancelTransfer(t.id)}>{get(t)('common.cancel')}</button>
                   {:else}
-                    <span class="text-dark-muted">{$t('common.transferring')}</span>
-                    <button class="btn-ghost btn-xs" onclick={() => cancelTransfer(t.id)}>{$t('common.pause')}</button>
+                    <span class="text-dark-muted">{get(t)('common.transferring')}</span>
+                    <button class="btn-ghost btn-xs" onclick={() => cancelTransfer(t.id)}>{get(t)('common.pause')}</button>
                   {/if}
                 </div>
               </div>
             {/each}
           </div>
         {:else}
-          <div class="text-[11px] text-dark-muted text-center py-4">{$t('control.transfer.queue')}</div>
+          <div class="text-[11px] text-dark-muted text-center py-4">{get(t)('control.transfer.queue')}</div>
         {/if}
       </div>
       <input type="file" bind:this={uploadInput} onchange={onUpload} class="hidden" />
