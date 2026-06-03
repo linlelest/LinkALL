@@ -10,7 +10,7 @@
 | [`server/`](./server/) | 后端服务（单二进制） | Go 1.22+ / Fiber v2 / SQLite / WebSocket |
 | [`web/`](./web/) | 网页控制端 + 管理后台 | Svelte 5 / Vite 6 / Tailwind 3 / TypeScript |
 | [`controlled-win/`](./controlled-win/) | Windows 桌面被控端 | Tauri 2 / Rust 1.85 / scrap / enigo / webrtc-rs |
-| [`android/`](./android/) | Android 三合一 App（被控 + 控制 + 管理） | Kotlin 2.1 / Compose / WebRTC SDK 125 |
+| [`android/`](./android/) | Android 三合一 App（被控 + 控制 + 管理） | Kotlin 2.1 / Compose / WebRTC SDK 125 / 最低 Android 7.0 (API 24) |
 | [`admin/`](./admin/) | 后台管理（与 `web/` 共享 `#/admin/*`） | 文档索引 |
 
 ## 特性
@@ -93,7 +93,7 @@ MIT © 2026 linlelest — 见 [LICENSE](./LICENSE)
 | [`server/`](./server/) | Backend (single binary) | Go 1.22+ / Fiber v2 / SQLite / WebSocket |
 | [`web/`](./web/) | Web client + admin console | Svelte 5 / Vite 6 / Tailwind 3 / TypeScript |
 | [`controlled-win/`](./controlled-win/) | Windows host | Tauri 2 / Rust 1.85 / scrap / enigo / webrtc-rs |
-| [`android/`](./android/) | Android 3-in-1 App (host + controller + admin) | Kotlin 2.1 / Compose / WebRTC SDK 125 |
+| [`android/`](./android/) | Android 3-in-1 App (host + controller + admin) | Kotlin 2.1 / Compose / WebRTC SDK 125 / Min Android 7.0 (API 24) |
 | [`admin/`](./admin/) | Admin (shares `web/#/admin/*`) | docs only |
 
 ## Features
