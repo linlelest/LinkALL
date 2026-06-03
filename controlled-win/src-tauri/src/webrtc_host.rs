@@ -321,7 +321,7 @@ impl Session {
         // SHA-256 校验
         let mut ok = true;
         if !st.sha256_expected.is_empty() {
-            if let Some(mut h) = st.hasher {
+            if let Some(h) = st.hasher {
                 let got = format!("{:x}", h.finalize());
                 ok = got.eq_ignore_ascii_case(&st.sha256_expected);
             }
@@ -363,11 +363,22 @@ impl Session {
             let target_fps = (*self.target_fps.lock()).max(1).min(120);
             let frame_interval = Duration::from_millis((1000 / target_fps as u64).max(8));
             let now = Instant::now();
-            if let Some(prev) = *self.last_frame_at.lock() {
-                let elapsed = now.duration_since(prev);
-                if elapsed < frame_interval {
-                    tokio::time::sleep(frame_interval - elapsed).await;
+            let sleep_dur = {
+                let guard = self.last_frame_at.lock();
+                match *guard {
+                    Some(prev) => {
+                        let elapsed = now.duration_since(prev);
+                        if elapsed < frame_interval {
+                            Some(frame_interval - elapsed)
+                        } else {
+                            None
+                        }
+                    }
+                    None => None,
                 }
+            };
+            if let Some(dur) = sleep_dur {
+                tokio::time::sleep(dur).await;
             }
             *self.last_frame_at.lock() = Some(Instant::now());
 
@@ -499,11 +510,14 @@ pub async fn accept_request(
     let _audio_sender = pc.add_track(Arc::clone(&audio_track) as Arc<dyn TrackLocal + Send + Sync>).await?;
 
     let dc_holder: Arc<Mutex<Option<Arc<webrtc::data_channel::RTCDataChannel>>>> = Arc::new(Mutex::new(None));
+    let app_handle_for_dc = app_handle.clone();
+    let app_handle_for_state = app_handle.clone();
     let dc_holder_cb = dc_holder.clone();
     pc.on_data_channel(Box::new(move |dc: Arc<webrtc::data_channel::RTCDataChannel>| {
+        let app = app_handle_for_dc.clone();
+        let dc_holder = dc_holder_cb.clone();
         Box::pin(async move {
             let dc = Arc::clone(&dc);
-            let app = app_handle.clone();
             dc.on_open(Box::new(move || {
                 Box::pin(async move {
                     let _ = app.emit("log", "[dc] open");
@@ -512,7 +526,7 @@ pub async fn accept_request(
             dc.on_message(Box::new(move |m: DataChannelMessage| {
                 Box::pin(async move {
                     let txt = String::from_utf8_lossy(&m.data).to_string();
-                    let app2 = app_handle.clone();
+                    let app2 = app.clone();
                     tauri::async_runtime::spawn(async move {
                         if let Ok(v) = serde_json::from_str::<Value>(&txt) {
                             if let Some(s) = SESSION.get() {
@@ -532,7 +546,7 @@ pub async fn accept_request(
                     });
                 }) as Pin<Box<dyn Future<Output = ()> + Send>>
             }));
-            *dc_holder_cb.lock() = Some(dc);
+            *dc_holder.lock() = Some(dc);
         }) as Pin<Box<dyn Future<Output = ()> + Send>>
     }));
 
@@ -554,7 +568,7 @@ pub async fn accept_request(
         Box::pin(async {})
     }));
 
-    let app_handle2 = app_handle.clone();
+    let app_handle2 = app_handle_for_state.clone();
     pc.on_peer_connection_state_change(Box::new(move |s: RTCPeerConnectionState| {
         Box::pin(async move {
             let _ = app_handle2.emit("status", json!({ "pc": format!("{s:?}") }));
@@ -562,7 +576,7 @@ pub async fn accept_request(
     }));
 
     tauri::async_runtime::spawn(async move {
-        let mut rtcp = rtp_sender;
+        let rtcp = rtp_sender;
         while let Ok((_pkts, _)) = rtcp.read_rtcp().await {
             // noop
         }

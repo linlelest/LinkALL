@@ -51,13 +51,10 @@ impl<'a> YUVSource for I420Frame<'a> {
 }
 
 impl H264Encoder {
-    pub fn new(width: u32, height: u32, bitrate_kbps: u32, fps: u32) -> Result<Arc<Self>> {
+    pub fn new(width: u32, height: u32, _bitrate_kbps: u32, _fps: u32) -> Result<Arc<Self>> {
         let config = EncoderConfig {
-            width: width as i32,
-            height: height as i32,
-            bitrate: bitrate_kbps as i32,
-            max_bitrate: (bitrate_kbps as i32) * 3 / 2,
-            framerate: fps as f32,
+            width,
+            height,
         };
         let enc = Encoder::with_config(config)?;
         Ok(Arc::new(Self {
@@ -69,14 +66,13 @@ impl H264Encoder {
         }))
     }
 
-    pub fn reconfig(&self, bitrate_kbps: u32, fps: u32) -> Result<()> {
+    pub fn reconfig(&self, _bitrate_kbps: u32, _fps: u32) -> Result<()> {
+        // openh264 0.3.2 EncoderConfig only supports width/height;
+        // bitrate/framerate are auto-configured.  Drop & recreate is the only path.
         let mut enc = self.enc.lock();
         let config = EncoderConfig {
-            width: self.width as i32,
-            height: self.height as i32,
-            bitrate: bitrate_kbps as i32,
-            max_bitrate: (bitrate_kbps as i32) * 3 / 2,
-            framerate: fps as f32,
+            width: self.width,
+            height: self.height,
         };
         *enc = Encoder::with_config(config)?;
         Ok(())
@@ -88,12 +84,11 @@ impl H264Encoder {
         let mut enc = self.enc.lock();
         let frame = build_oh_frame(&yuv, w, h);
         let bitstream = enc.encode(&frame)?;
-        let raw = bitstream.data().to_vec();
+        let raw = bitstream.as_ref().to_vec();
         let nals = split_annexb(&raw);
         let mut avcc = BytesMut::new();
         for n in nals {
             if n.len() < 3 { continue; }
-            let nal_type = n[0] & 0x1f;
             avcc.put_u32(n.len() as u32);
             avcc.extend_from_slice(&n);
         }
@@ -101,7 +96,7 @@ impl H264Encoder {
         let is_key = first_nal_type == 5;
         Ok(vec![EncodedFrame {
             data: avcc.freeze(),
-            is_keyframe: is_key || bitstream.is_keyframe(),
+            is_keyframe: is_key,
             width: w,
             height: h,
         }])

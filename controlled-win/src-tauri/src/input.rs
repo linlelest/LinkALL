@@ -19,40 +19,37 @@ fn map_button(b: i32) -> enigo::Button {
 
 fn vk_to_enigo(code: &str) -> Option<Key> {
     use enigo::Key::*;
-    let result = match code {
-        "Backspace" => Backspace,
-        "Tab" => Tab,
-        "Enter" | "NumpadEnter" => Return,
-        "Escape" => Escape,
-        "Space" => Space,
-        "ArrowLeft" => LeftArrow,
-        "ArrowRight" => RightArrow,
-        "ArrowUp" => UpArrow,
-        "ArrowDown" => DownArrow,
-        "Shift" | "ShiftLeft" | "ShiftRight" => Shift,
-        "Control" | "Ctrl" => Control,
-        "Alt" | "AltLeft" | "AltRight" => Alt,
-        "Meta" | "Win" => Meta,
-        "CapsLock" => CapsLock,
-        "Home" => Home,
-        "End" => End,
-        "PageUp" => PageUp,
-        "PageDown" => PageDown,
-        "Delete" => Delete,
-        "Insert" => Insert,
-        "F1" => F1, "F2" => F2, "F3" => F3, "F4" => F4, "F5" => F5, "F6" => F6,
-        "F7" => F7, "F8" => F8, "F9" => F9, "F10" => F10, "F11" => F11, "F12" => F12,
-        _ => {
-            if code.len() == 1 {
-                let ch = code.chars().next().unwrap();
-                if ch.is_ascii_alphabetic() || ch.is_ascii_digit() || ch.is_ascii_punctuation() || ch == ' ' {
-                    return Some(Key::Unicode(ch));
-                }
-            }
-            return None;
+    if code.len() == 1 {
+        let ch = code.chars().next().unwrap();
+        if ch.is_ascii_alphabetic() || ch.is_ascii_digit() || ch.is_ascii_punctuation() || ch == ' ' {
+            return Some(Key::Unicode(ch));
         }
-    };
-    Some(result)
+    }
+    match code {
+        "Backspace" => Some(Backspace),
+        "Tab" => Some(Tab),
+        "Enter" | "NumpadEnter" => Some(Return),
+        "Escape" => Some(Escape),
+        "Space" => Some(Space),
+        "ArrowLeft" => Some(LeftArrow),
+        "ArrowRight" => Some(RightArrow),
+        "ArrowUp" => Some(UpArrow),
+        "ArrowDown" => Some(DownArrow),
+        "Shift" | "ShiftLeft" | "ShiftRight" => Some(Shift),
+        "Control" | "Ctrl" => Some(Control),
+        "Alt" | "AltLeft" | "AltRight" => Some(Alt),
+        "Meta" | "Win" => Some(Meta),
+        "CapsLock" => Some(CapsLock),
+        "Home" => Some(Home),
+        "End" => Some(End),
+        "PageUp" => Some(PageUp),
+        "PageDown" => Some(PageDown),
+        "Delete" => Some(Delete),
+        "Insert" => Some(Insert),
+        "F1" => Some(F1), "F2" => Some(F2), "F3" => Some(F3), "F4" => Some(F4), "F5" => Some(F5), "F6" => Some(F6),
+        "F7" => Some(F7), "F8" => Some(F8), "F9" => Some(F9), "F10" => Some(F10), "F11" => Some(F11), "F12" => Some(F12),
+        _ => None,
+    }
 }
 
 pub fn send_mouse(x_pct: f64, y_pct: f64, button: i32, down: bool) -> Result<()> {

@@ -97,23 +97,27 @@ pub async fn start(state: Arc<AppState>, app_handle: tauri::AppHandle) -> Result
             loop {
                 tokio::select! {
                     _ = &mut stop_rx => { return; }
-                    msg = read.next() => match msg {
-                        Some(Ok(Message::Text(txt))) => {
-                            let v: Value = match serde_json::from_str(&txt) { Ok(v) => v, Err(_) => continue };
-                            handle_incoming(&app, &v).await;
+                    msg = read.next() => {
+                        match msg {
+                            Some(Ok(Message::Text(txt))) => {
+                                let v: Value = match serde_json::from_str(&txt) { Ok(v) => v, Err(_) => continue };
+                                handle_incoming(&app, &v).await;
+                            }
+                            Some(Ok(Message::Ping(_))) => {}
+                            Some(Ok(_)) => {}
+                            Some(Ok(Message::Binary(_))) => {}
+                            Some(Ok(Message::Close(_))) => return,
+                            Some(Err(e)) => {
+                                let _ = app.emit("log", format!("[ws] err: {e}"));
+                                break;
+                            }
+                            None => break,
                         }
-                        Some(Ok(Message::Ping(_))) => {}
-                        Some(Ok(_)) => {}
-                        Some(Ok(Message::Binary(_))) => {}
-                        Some(Ok(Message::Close(_))) => return,
-                        Some(Err(e)) => {
-                            let _ = app.emit("log", format!("[ws] err: {e}"));
-                            break;
-                        }
-                        None => break,
                     }
-                    Some(v) = rx.recv() => {
-                        if write.send(Message::Text(v.to_string())).await.is_err() { break; }
+                    v = rx.recv() => {
+                        if let Some(v) = v {
+                            if write.send(Message::Text(v.to_string())).await.is_err() { break; }
+                        }
                     }
                 }
             }
