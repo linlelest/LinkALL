@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { t } from '../i18n';
+  import { t } from '../../i18n';
   let { value = $bindable(), options }: { value: any; options: Array<{label:string, value:any}> } = $props();
 </script>
 

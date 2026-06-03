@@ -104,4 +104,6 @@
     <string name="notify_channel_hosted">被控服务</string>
     <string name="notify_hosted_title">LinkALL 被控服务运行中</string>
     <string name="notify_hosted_text">设备编号：%1$s</string>
+    <string name="ime_name">LinkALL 输入法</string>
+    <string name="ime_subtype">英文（US）</string>
 </resources>

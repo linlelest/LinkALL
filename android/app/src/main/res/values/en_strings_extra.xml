@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="ime_name">LinkALL Input</string>
-    <string name="ime_subtype">English (US)</string>
-    <string name="notify_channel_hosted">LinkALL Hosted</string>
-    <string name="notify_hosted_title">LinkALL is sharing your screen</string>
-    <string name="notify_hosted_text">Device %1$s is accepting remote control</string>
-</resources>
