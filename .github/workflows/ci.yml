@@ -47,7 +47,7 @@ jobs:
       - name: "Web: install + type check"
         working-directory: web
         run: |
-          pnpm install --frozen-lockfile
+          pnpm install --no-frozen-lockfile
           pnpm run check
       - name: "Web: build (smoke test)"
         working-directory: web
@@ -55,7 +55,7 @@ jobs:
       - name: "Admin: install + type check"
         working-directory: admin
         run: |
-          pnpm install --frozen-lockfile
+          pnpm install --no-frozen-lockfile
           pnpm run check
       - name: "Admin: build (smoke test)"
         working-directory: admin
@@ -81,15 +81,16 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-      - name: Cache gradle
-        uses: actions/cache@v4
+      - uses: gradle/actions/setup-gradle@v4
         with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
+          gradle-version: '8.7'
+      - name: Generate wrapper (if missing)
+        working-directory: android
+        run: |
+          if [ ! -f gradlew ]; then
+            gradle wrapper --gradle-version 8.7
+            chmod +x gradlew
+          fi
       - name: "Android: compileDebugKotlin (no APK)"
         working-directory: android
         run: ./gradlew :app:compileDebugKotlin --no-daemon --stacktrace

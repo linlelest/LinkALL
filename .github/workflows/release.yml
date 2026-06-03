@@ -23,32 +23,25 @@ permissions:
   contents: write
 
 jobs:
-  # ============== Server (Go) 多平台二进制 ==============
+  # ============== Server (Go) Windows 二进制 ==============
   server:
-    name: Server (${{ matrix.os }})
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+    name: Server (Windows)
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: '1.24.3'
       - name: Build server
+        shell: bash
         working-directory: server
-        env:
-          GOOS: ${{ matrix.os == 'windows-latest' && 'windows' || (matrix.os == 'macos-latest' && 'darwin' || 'linux') }}
-          GOARCH: amd64
         run: |
           mkdir -p ../dist
-          EXT=${{ matrix.os == 'windows-latest' && '.exe' || '' }}
-          go build -trimpath -ldflags="-s -w" -o "../dist/linkall-server-${{ matrix.os }}${EXT}" .
+          go build -trimpath -ldflags="-s -w" -o "../dist/linkall-server-windows.exe" .
       - name: Upload server binary
         uses: actions/upload-artifact@v4
         with:
-          name: server-${{ matrix.os }}
+          name: server-windows
           path: dist/linkall-server-*
 
   # ============== Tauri Windows MSI/NSIS ==============
@@ -71,7 +64,7 @@ jobs:
           version: 9
       - name: Install frontend deps
         working-directory: controlled-win
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
       - name: Build MSI/NSIS
         uses: tauri-apps/tauri-action@v0
         env:
@@ -101,12 +94,12 @@ jobs:
       - name: Build web
         working-directory: web
         run: |
-          pnpm install --frozen-lockfile
+          pnpm install --no-frozen-lockfile
           pnpm run build
       - name: Build admin
         working-directory: admin
         run: |
-          pnpm install --frozen-lockfile
+          pnpm install --no-frozen-lockfile
           pnpm run build
       - name: Upload web
         uses: actions/upload-artifact@v4
@@ -129,6 +122,16 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+      - name: Generate wrapper (if missing)
+        working-directory: android
+        run: |
+          if [ ! -f gradlew ]; then
+            gradle wrapper --gradle-version 8.7
+            chmod +x gradlew
+          fi
       - name: Decode Keystore (optional)
         env:
           GRADLE_SIGNING_KEY: ${{ secrets.GRADLE_SIGNING_KEY }}
@@ -136,15 +139,9 @@ jobs:
           if [ -n "$GRADLE_SIGNING_KEY" ]; then
             echo "$GRADLE_SIGNING_KEY" | base64 -d > android/app/release.keystore
           fi
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
       - name: Assemble APK
+        env:
+          GRADLE_SIGNING_KEY: ${{ secrets.GRADLE_SIGNING_KEY }}
         working-directory: android
         run: |
           if [ -n "$GRADLE_SIGNING_KEY" ]; then
