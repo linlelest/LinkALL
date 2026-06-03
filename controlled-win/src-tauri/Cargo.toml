@@ -1,0 +1,83 @@
+[package]
+name = "linkall-controlled-win"
+version = "1.0.0"
+description = "LinkALL Hosted (controlled) end for Windows"
+authors = ["LinkALL"]
+edition = "2021"
+rust-version = "1.85"
+
+[lib]
+name = "linkall_controlled_win_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-os = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+tokio-tungstenite = "0.24"
+futures-util = "0.3"
+url = "2"
+uuid = { version = "1", features = ["v4"] }
+chrono = "0.4"
+log = "0.4"
+env_logger = "0.11"
+reqwest = { version = "0.12", features = ["json", "multipart", "rustls-tls"], default-features = false }
+rusqlite = { version = "0.32", features = ["bundled"] }
+scrap = "0.5"
+enigo = "0.3"
+parking_lot = "0.12"
+anyhow = "1"
+thiserror = "2"
+once_cell = "1"
+dirs = "5"
+sha2 = "0.10"
+hex = "0.4"
+rand = "0.8"
+webrtc = "0.12"
+bytes = "1"
+tokio-util = { version = "0.7", features = ["rt"] }
+openh264 = { version = "0.3", default-features = false, features = ["bundled"] }
+aes-gcm = "0.10"
+arboard = "3"
+base64 = "0.22"
+cpal = "0.15"
+opus = { version = "0.3", features = ["bundled"] }
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.58", features = [
+  "Win32_Foundation",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_System_Threading",
+  "Win32_Graphics_Gdi",
+  "Win32_Graphics_Dxgi",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_System_Registry",
+  "Win32_UI_Shell",
+  "Win32_Security_Cryptography",
+  "Win32_System_Memory"
+] }
+auto-launch = "0.5"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true
+# 增量构建友好：开发 profile 启用少量优化
+incremental = true
+
+# 体积优化：移除 debug symbols / panic 字符串（生产）
+# 已通过 strip + lto + opt-level="s" 覆盖 80%；如需极致压缩可加：
+#  - winres 设置图标 / version
+#  - UPX 压缩（msi/nsis 之后）
+
+# 运行时：Windows 端用 mimalloc 替换默认 allocator，能显著降低内存峰值
+# 但需要 feature-gate：避免 Linux 编译时拉 Windows-only 依赖
+[target.'cfg(windows)'.dependencies]
+mimalloc = { version = "0.1", default-features = false }

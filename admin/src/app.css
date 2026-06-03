@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #020617;
+  --fg: #e2e8f0;
+  --accent: #38bdf8;
+  --danger: #f87171;
+  --warn: #fbbf24;
+  --ok: #4ade80;
+}
+
+html, body, #app { height: 100%; }
+body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
+
+.card {
+  @apply bg-slate-900 border border-slate-800 rounded-lg p-4;
+}
+.btn {
+  @apply inline-flex items-center px-3 py-1.5 rounded text-sm font-medium transition;
+}
+.btn-primary { @apply bg-sky-600 hover:bg-sky-500 text-white; }
+.btn-danger  { @apply bg-rose-600 hover:bg-rose-500 text-white; }
+.btn-ghost   { @apply bg-slate-800 hover:bg-slate-700 text-slate-100; }
+.input {
+  @apply bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm w-full
+         focus:outline-none focus:ring-2 focus:ring-sky-500/40;
+}
+.label { @apply text-xs text-slate-400 mb-1 block; }
+.badge { @apply inline-block px-1.5 py-0.5 rounded text-xs font-mono; }
+.badge-fatal { @apply bg-rose-900/60 text-rose-200; }
+.badge-error { @apply bg-orange-900/60 text-orange-200; }
+.badge-warn  { @apply bg-amber-900/60 text-amber-200; }
+.badge-info  { @apply bg-sky-900/60 text-sky-200; }
+.badge-debug { @apply bg-slate-800 text-slate-300; }
+.badge-trace { @apply bg-slate-900 text-slate-400; }

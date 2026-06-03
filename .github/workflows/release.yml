@@ -1,0 +1,203 @@
+name: Release
+
+# Tag 推送（v*）触发的正式发布：
+#   - 多平台打包（server 3 端 / tauri-windows / web / android）
+#   - 上传 artifacts
+#   - 创建 GitHub Release（带下载链接）
+# 日常 push 检查走 ci.yml（最小编译）
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '发布 tag（用于手动发布已存在的 tag）'
+        required: false
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  # ============== Server (Go) 多平台二进制 ==============
+  server:
+    name: Server (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.3'
+      - name: Build server
+        working-directory: server
+        env:
+          GOOS: ${{ matrix.os == 'windows-latest' && 'windows' || (matrix.os == 'macos-latest' && 'darwin' || 'linux') }}
+          GOARCH: amd64
+        run: |
+          mkdir -p ../dist
+          EXT=${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+          go build -trimpath -ldflags="-s -w" -o "../dist/linkall-server-${{ matrix.os }}${EXT}" .
+      - name: Upload server binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-${{ matrix.os }}
+          path: dist/linkall-server-*
+
+  # ============== Tauri Windows MSI/NSIS ==============
+  tauri:
+    name: Tauri Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.85'
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: controlled-win/src-tauri -> target
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - name: Install frontend deps
+        working-directory: controlled-win
+        run: pnpm install --frozen-lockfile
+      - name: Build MSI/NSIS
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: controlled-win
+          args: --target x86_64-pc-windows-msvc
+      - name: Upload bundles
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-windows
+          path: controlled-win/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/
+          if-no-files-found: warn
+
+  # ============== Web 静态站点 ==============
+  web:
+    name: Web + Admin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - name: Build web
+        working-directory: web
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm run build
+      - name: Build admin
+        working-directory: admin
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm run build
+      - name: Upload web
+        uses: actions/upload-artifact@v4
+        with:
+          name: web
+          path: web/dist/
+      - name: Upload admin
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin
+          path: admin/dist/
+
+  # ============== Android APK ==============
+  android:
+    name: Android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - name: Decode Keystore (optional)
+        env:
+          GRADLE_SIGNING_KEY: ${{ secrets.GRADLE_SIGNING_KEY }}
+        run: |
+          if [ -n "$GRADLE_SIGNING_KEY" ]; then
+            echo "$GRADLE_SIGNING_KEY" | base64 -d > android/app/release.keystore
+          fi
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+      - name: Assemble APK
+        working-directory: android
+        run: |
+          if [ -n "$GRADLE_SIGNING_KEY" ]; then
+            ./gradlew :app:assembleRelease --no-daemon --stacktrace
+          else
+            ./gradlew :app:assembleDebug --no-daemon --stacktrace
+          fi
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: |
+            android/app/build/outputs/apk/debug/*.apk
+            android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: warn
+
+  # ============== 汇总：创建 GitHub Release ==============
+  publish:
+    name: Create GitHub Release
+    needs: [server, tauri, web, android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Show artifacts
+        run: ls -la artifacts/
+      - name: Resolve tag name
+        id: tag
+        run: |
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            echo "name=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.name }}
+          name: LinkALL ${{ steps.tag.outputs.name }}
+          generate_release_notes: true
+          draft: false
+          fail_on_unmatched_files: false
+          files: |
+            artifacts/linkall-server-*
+            artifacts/*.msi
+            artifacts/*.exe
+            artifacts/*.zip
+            artifacts/*.apk
+            artifacts/web/*
+            artifacts/admin/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,69 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "LinkALL Hosted",
+  "version": "1.0.0",
+  "identifier": "com.linkall.hosted.win",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "LinkALL Hosted",
+        "width": 520,
+        "height": 720,
+        "minWidth": 420,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": true,
+        "visible": true,
+        "center": true
+      },
+      {
+        "label": "toolbar",
+        "title": "LinkALL Toolbar",
+        "url": "/toolbar.html",
+        "width": 360,
+        "height": 56,
+        "minWidth": 280,
+        "minHeight": 56,
+        "maxWidth": 600,
+        "maxHeight": 56,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "visible": false,
+        "focus": false,
+        "shadow": false,
+        "x": 100,
+        "y": 100
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' data: asset: https://asset.localhost; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ipc: http://ipc.localhost ws: wss: http: https:"
+    },
+    "trayIcon": {
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": false,
+      "menuOnLeftClick": false,
+      "tooltip": "LinkALL Hosted"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["msi", "nsis"],
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
+    "resources": [],
+    "windows": {
+      "wix": { "language": ["zh-CN", "en-US"] },
+      "nsis": { "languages": ["SimpChinese", "English"] }
+    }
+  }
+}

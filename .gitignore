@@ -1,0 +1,87 @@
+# ============== OS ==============
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ============== Editor / IDE ==============
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ============== Node / Svelte / Vite ==============
+node_modules/
+dist/
+.svelte-kit/
+.vite/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ============== Rust / Tauri ==============
+target/
+**/target/
+**/*.rs.bk
+Cargo.lock.bak
+# Release bundle (避免把 MSI/NSIS 提进仓库)
+**/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/
+**/src-tauri/target/release/bundle/
+
+# ============== Go ==============
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+# Test binary
+*.test
+*.out
+# Linkall server output
+server/linkall-server
+server/linkall-server.exe
+server/dist/
+
+# ============== Android / Gradle ==============
+android/.gradle/
+android/local.properties
+android/captures/
+android/.cxx/
+android/app/release/
+# 签名 / Firebase 配置（不进仓库）
+android/app/google-services.json
+android/app/google-services.xml
+android/app/release.keystore
+android/app/*.jks
+android/app/*.keystore
+# Keystore 环境变量文件
+android/keystore.properties
+android/keystore.env
+
+# ============== Tauri (controlled-win) ==============
+controlled-win/src-tauri/target/
+controlled-win/src-tauri/gen/
+controlled-win/src-tauri/icons/.DS_Store
+controlled-win/src/lib/api.ts.bak
+# 本地数据库（开发时留在仓库外，避免泄漏 device code / token）
+controlled-win/src-tauri/data/
+**/LinkALL Hosted/
+**/LinkALL\ Hosted/
+
+# ============== Server data ==============
+server/data/
+server/ota-builds/
+server/jwt-keys/
+# 凭据
+server/.env
+server/.env.local
+server/.env.production
+**/fcm-service-account.json
+**/firebase-adminsdk-*.json
+
+# ============== Editor backups ==============
+*.bak
+*.tmp
+*.orig
+*~

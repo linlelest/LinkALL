@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html, body, #app { height: 100%; }
+body { margin: 0; -webkit-font-smoothing: antialiased; }
+
+* { box-sizing: border-box; }
+
+/* 滚动条美化 */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2a3340; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #3a4555; }
+
+/* 通用按钮 */
+.btn { @apply inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition; }
+.btn-primary { @apply btn bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed; }
+.btn-ghost { @apply btn bg-dark-panel text-dark-text border border-dark-border hover:border-primary-500; }
+.btn-danger { @apply btn bg-red-500/90 text-white hover:bg-red-600; }
+.btn-success { @apply btn bg-emerald-500 text-white hover:bg-emerald-600; }
+.btn-sm { @apply text-xs px-2 py-1; }
+
+.input { @apply w-full bg-dark-panel border border-dark-border rounded px-3 py-2 text-sm focus:border-primary-500 outline-none transition; }
+.label { @apply text-xs text-dark-muted mb-1 block; }
+.card { @apply bg-dark-panel border border-dark-border rounded-lg; }
+
+/* 在线呼吸灯 */
+.dot { @apply inline-block w-2 h-2 rounded-full; }
+.dot-online { @apply bg-emerald-500; animation: pulse 2s infinite; }
+.dot-offline { @apply bg-zinc-500; }
+.dot-busy { @apply bg-rose-500; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Modal 背景 */
+.modal-bg { @apply fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4; }
+.modal { @apply bg-dark-panel border border-dark-border rounded-xl w-full max-w-lg shadow-2xl; }
+
+/* Tab */
+.tab { @apply px-3 py-2 text-sm rounded-t border-b-2 border-transparent text-dark-muted hover:text-dark-text cursor-pointer; }
+.tab-active { @apply text-dark-text border-primary-500; }

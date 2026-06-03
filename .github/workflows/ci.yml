@@ -1,0 +1,95 @@
+name: CI
+
+# 源码 push / PR 触发的最小化编译检查
+# 目的：快速反馈"代码能过编译/类型检查"，不打包、不出 artifact
+# 正式打包发布由 release.yml 在 tag 触发时完成
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# 取消旧运行，避免重复跑
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: minimal compile check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # --- Server (Go) ---
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.3'
+          cache-dependency-path: server/go.sum
+      - name: Server: go vet + go build
+        working-directory: server
+        run: |
+          go mod download
+          go vet ./...
+          go build ./...
+
+      # --- Web (Svelte) ---
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - name: Web: install + type check
+        working-directory: web
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm run check
+      - name: Web: build (smoke test)
+        working-directory: web
+        run: pnpm run build
+      - name: Admin: install + type check
+        working-directory: admin
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm run check
+      - name: Admin: build (smoke test)
+        working-directory: admin
+        run: pnpm run build
+
+      # --- Tauri Windows (Rust) ---
+      # Linux 上 cargo check 不链接 GUI 库也能验语法/类型
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.85'
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: controlled-win/src-tauri -> target
+      - name: Tauri: cargo check (lib only, no full Tauri build)
+        working-directory: controlled-win/src-tauri
+        run: cargo check --locked --lib
+
+      # --- Android (Kotlin) ---
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - name: Cache gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+      - name: Android: compileDebugKotlin (no APK)
+        working-directory: android
+        run: ./gradlew :app:compileDebugKotlin --no-daemon --stacktrace

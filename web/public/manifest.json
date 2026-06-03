@@ -1,0 +1,12 @@
+{
+  "name": "LinkALL",
+  "short_name": "LinkALL",
+  "description": "Lightweight cross-platform remote control",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f0f12",
+  "theme_color": "#6366f1",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "512x512", "type": "image/svg+xml" }
+  ]
+}

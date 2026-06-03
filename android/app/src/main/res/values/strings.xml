@@ -1,0 +1,107 @@
+<resources>
+    <string name="app_name">LinkALL</string>
+    <string name="app_tagline">极轻量跨平台远程控制</string>
+
+    <!-- 底部导航 -->
+    <string name="tab_hosted">被控</string>
+    <string name="tab_controller">控制</string>
+    <string name="tab_admin">管理</string>
+
+    <!-- 通用 -->
+    <string name="ok">确定</string>
+    <string name="cancel">取消</string>
+    <string name="save">保存</string>
+    <string name="edit">编辑</string>
+    <string name="delete">删除</string>
+    <string name="copy">复制</string>
+    <string name="refresh">刷新</string>
+    <string name="add">新增</string>
+    <string name="revoke">吊销</string>
+    <string name="upload">上传</string>
+    <string name="download">下载</string>
+    <string name="disconnect">断开</string>
+    <string name="connect">连接</string>
+    <string name="settings">设置</string>
+    <string name="logout">退出登录</string>
+    <string name="search">搜索</string>
+    <string name="yes">是</string>
+    <string name="no">否</string>
+    <string name="back">返回</string>
+    <string name="more">更多</string>
+
+    <!-- 登录 -->
+    <string name="login_title">登录到 LinkALL</string>
+    <string name="login_tab_login">登录</string>
+    <string name="login_tab_register">注册</string>
+    <string name="login_username">用户名</string>
+    <string name="login_password">密码</string>
+    <string name="login_invite">邀请码</string>
+    <string name="login_invite_hint">首次注册需要邀请码</string>
+    <string name="login_server">服务器地址</string>
+    <string name="login_submit">登录</string>
+    <string name="login_register">注册并登录</string>
+    <string name="login_failed">登录失败</string>
+
+    <!-- 被控端 -->
+    <string name="hosted_title">被控</string>
+    <string name="hosted_status">服务状态</string>
+    <string name="hosted_status_running">运行中</string>
+    <string name="hosted_status_paused">已暂停</string>
+    <string name="hosted_status_offline">未登录</string>
+    <string name="hosted_device_code">设备编号</string>
+    <string name="hosted_device_password">设备码</string>
+    <string name="hosted_device_name">设备名称</string>
+    <string name="hosted_security">安全设置</string>
+    <string name="hosted_allow_anon">允许匿名连接</string>
+    <string name="hosted_require_code">需要设备码</string>
+    <string name="hosted_accept">接受连接</string>
+    <string name="hosted_reset_code">重置设备码</string>
+    <string name="hosted_autostart">开机自启</string>
+    <string name="hosted_open_settings">打开无障碍服务</string>
+    <string name="hosted_capture">截屏 / 录屏权限</string>
+    <string name="hosted_battery">电池优化白名单</string>
+    <string name="hosted_boot">开机自启（部分厂商）</string>
+    <string name="hosted_foreground">启动前台服务</string>
+    <string name="hosted_stop_foreground">停止服务</string>
+    <string name="hosted_quit">退出软件</string>
+    <string name="hosted_request_title">收到连接请求</string>
+    <string name="hosted_request_allow_once">仅本次</string>
+    <string name="hosted_request_allow_perm">永久允许</string>
+    <string name="hosted_request_deny">拒绝</string>
+
+    <!-- 控制端 -->
+    <string name="ctrl_title">控制</string>
+    <string name="ctrl_connect">远程连接</string>
+    <string name="ctrl_mode">连接模式</string>
+    <string name="ctrl_mode_account">同账号</string>
+    <string name="ctrl_mode_anon">匿名</string>
+    <string name="ctrl_code">目标设备编号</string>
+    <string name="ctrl_password">设备码（可选）</string>
+    <string name="ctrl_start">发起连接</string>
+    <string name="ctrl_kb">虚拟键盘</string>
+    <string name="ctrl_mouse">虚拟鼠标</string>
+    <string name="ctrl_lr">左右键</string>
+    <string name="ctrl_wheel">滚轮</string>
+    <string name="ctrl_transfer">文件传输</string>
+    <string name="ctrl_scale">缩放</string>
+    <string name="ctrl_bitrate">码率</string>
+    <string name="ctrl_fps">帧率</string>
+    <string name="ctrl_codec">编码</string>
+    <string name="ctrl_privacy">防窥屏</string>
+    <string name="ctrl_send_file">发送文件</string>
+    <string name="ctrl_exit">退出</string>
+
+    <!-- 管理端 -->
+    <string name="admin_title">管理</string>
+    <string name="admin_account">账号</string>
+    <string name="admin_devices">设备</string>
+    <string name="admin_announcements">公告</string>
+    <string name="admin_ota">OTA 更新</string>
+    <string name="admin_locale">语言</string>
+
+    <string name="accessibility_desc">LinkALL 通过无障碍服务实现键鼠注入，用于远程控制本设备。开启后请保持后台运行。</string>
+
+    <string name="notify_channel_hosted">被控服务</string>
+    <string name="notify_hosted_title">LinkALL 被控服务运行中</string>
+    <string name="notify_hosted_text">设备编号：%1$s</string>
+</resources>
