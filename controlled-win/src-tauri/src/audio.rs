@@ -42,7 +42,7 @@ pub fn start(track: Arc<TrackLocalStaticSample>) -> Result<()> {
                 break;
             }
             let sample = Sample {
-                data: packet,
+                data: packet.into(),
                 duration: Duration::from_millis(20),
                 ..Default::default()
             };
@@ -83,7 +83,7 @@ fn capture_loop(tx: mpsc::Sender<Vec<u8>>, stop: Arc<AtomicBool>) -> Result<()> 
     let tx = tx;
     let stop2 = stop.clone();
 
-    let stream = device.build_input_stream::<f32>(
+    let stream = device.build_input_stream::<f32, _, _>(
         &config,
         move |data: &[f32], _: &_| {
             if stop2.load(Ordering::Acquire) {

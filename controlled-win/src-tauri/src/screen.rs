@@ -10,7 +10,7 @@ use anyhow::Result;
 use bytes::Bytes;
 use once_cell::sync::OnceCell;
 use parking_lot::Mutex;
-use scrap::{Capturer, Display, Frame, TraitCapturer, TraitFrame};
+use scrap::{Capturer, Display, Frame};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::time::Duration;
@@ -79,7 +79,7 @@ pub fn list_displays() -> Vec<DisplayInfo> {
         index: i,
         width: d.width() as u32,
         height: d.height() as u32,
-        is_primary: d.is_primary(),
+        is_primary: i == 0,
         name: format!("Display {} ({}x{})", i, d.width(), d.height()),
     }).collect()
 }
@@ -96,13 +96,13 @@ pub fn selected_display() -> usize {
 fn pick_display() -> Result<Display> {
     let all = Display::all()?;
     if all.is_empty() {
-        return Display::primary();
+        return Err(anyhow::anyhow!("no displays found"));
     }
     let idx = selected_display();
     if idx < all.len() {
         Ok(all.into_iter().nth(idx).unwrap())
     } else {
-        Ok(Display::primary()?)
+        Ok(all.into_iter().next().unwrap())
     }
 }
 
@@ -116,7 +116,7 @@ pub async fn capture() -> Result<CapturedFrame> {
         let display = pick_display()?;
         let mut capturer: Capturer = Capturer::new(display)?;
         let (w, h) = (capturer.width() as u32, capturer.height() as u32);
-        let frame: Frame = capturer.frame(Duration::from_millis(16))?;
+        let frame: Frame = capturer.frame()?;
         // 原始 BGRA -> Bytes
         Ok((Bytes::from(frame.to_vec()), w, h))
     })
@@ -125,4 +125,4 @@ pub async fn capture() -> Result<CapturedFrame> {
     Ok(CapturedFrame { data, width: w, height: h })
 }
 
-pub use crate::webrtc_host::encode_frame;
+pub use crate::h264::EncodedFrame;

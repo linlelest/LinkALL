@@ -147,18 +147,59 @@ fn machine_key_path() -> Option<PathBuf> {
 }
 
 #[cfg(target_os = "windows")]
+#[repr(C)]
+struct CRYPT_DATA_BLOB {
+    cbData: u32,
+    pbData: *mut core::ffi::c_void,
+}
+
+#[cfg(target_os = "windows")]
+impl Default for CRYPT_DATA_BLOB {
+    fn default() -> Self { Self { cbData: 0, pbData: core::ptr::null_mut() } }
+}
+
+#[cfg(target_os = "windows")]
+#[link(name = "Crypt32")]
+extern "system" {
+    fn CryptProtectData(
+        pDataIn: *const CRYPT_DATA_BLOB,
+        szDataDescr: *const u16,
+        pOptionalEntropy: *const CRYPT_DATA_BLOB,
+        pvReserved: *mut core::ffi::c_void,
+        pPromptStruct: *mut core::ffi::c_void,
+        dwFlags: u32,
+        pDataOut: *mut CRYPT_DATA_BLOB,
+    ) -> i32;
+    fn CryptUnprotectData(
+        pDataIn: *const CRYPT_DATA_BLOB,
+        ppszDataDescr: *mut *mut u16,
+        pOptionalEntropy: *const CRYPT_DATA_BLOB,
+        pvReserved: *mut core::ffi::c_void,
+        pPromptStruct: *mut core::ffi::c_void,
+        dwFlags: u32,
+        pDataOut: *mut CRYPT_DATA_BLOB,
+    ) -> i32;
+}
+
+#[cfg(target_os = "windows")]
+#[link(name = "kernel32")]
+extern "system" {
+    fn LocalFree(hmem: *mut core::ffi::c_void) -> *mut core::ffi::c_void;
+}
+
+#[cfg(target_os = "windows")]
+fn dpapi_result(r: i32) -> Result<()> {
+    if r == 0 { Err(anyhow::anyhow!("DPAPI call failed")) } else { Ok(()) }
+}
+
+#[cfg(target_os = "windows")]
 fn load_or_create_key(mode: SecureStoreMode) -> Result<[u8; 32]> {
-    use windows::Win32::Security::Cryptography::{
-        CryptProtectData, CryptUnprotectData, CRYPT_DATA_BLOB,
-    };
     let path = key_path().ok_or_else(|| anyhow::anyhow!("no APPDATA"))?;
-    // 1) 先尝试用指定 scope 读
     if let Ok(b) = std::fs::read(&path) {
         if let Ok(k) = dpapi_unprotect(&b, mode) {
             return Ok(k);
         }
     }
-    // 2) 用同 mode 加密新 key
     let mut k = [0u8; 32];
     rand::thread_rng().fill_bytes(&mut k);
     let protected = dpapi_protect(&k, mode)?;
@@ -171,9 +212,8 @@ fn load_or_create_key(mode: SecureStoreMode) -> Result<[u8; 32]> {
 
 #[cfg(target_os = "windows")]
 fn ensure_machine_backup(key: &[u8; 32]) -> Result<()> {
-    use windows::Win32::Security::Cryptography::{CryptProtectData, CRYPT_DATA_BLOB};
     let Some(path) = machine_key_path() else { return Ok(()) };
-    if path.exists() { return Ok(()); }  // 已存在
+    if path.exists() { return Ok(()); }
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).ok();
     }
@@ -182,87 +222,62 @@ fn ensure_machine_backup(key: &[u8; 32]) -> Result<()> {
     Ok(())
 }
 
-/// 用 Machine scope 恢复 key（admin 升级、跨用户重装场景）
-/// 仅当 secure_key.bin（user scope）丢失时调用
 #[cfg(target_os = "windows")]
 pub fn recover_machine_key() -> Result<[u8; 32]> {
-    use windows::Win32::Security::Cryptography::{CryptUnprotectData, CRYPT_DATA_BLOB};
     let Some(path) = machine_key_path() else { return Err(anyhow::anyhow!("no PROGRAMDATA")) };
     if !path.exists() {
         return Err(anyhow::anyhow!("no machine backup; cannot recover"));
     }
     let b = std::fs::read(&path)?;
-    let in_blob = CRYPT_DATA_BLOB {
-        cbData: b.len() as u32,
-        pbData: b.as_ptr() as *mut _,
-    };
+    let in_blob = CRYPT_DATA_BLOB { cbData: b.len() as u32, pbData: b.as_ptr() as *mut _ };
     let mut out = CRYPT_DATA_BLOB::default();
     unsafe {
-        if CryptUnprotectData(&in_blob, None, None, None, None, 0, &mut out).is_err() {
-            return Err(anyhow::anyhow!("CryptUnprotectData"));
-        }
+        dpapi_result(CryptUnprotectData(&in_blob, core::ptr::null_mut(), core::ptr::null(), core::ptr::null_mut(), core::ptr::null_mut(), 0, &mut out))?;
         if out.cbData != 32 {
-            windows::Win32::System::Memory::LocalFree(windows::Win32::System::Memory::HLOCAL(out.pbData as _));
+            LocalFree(out.pbData as *mut _);
             return Err(anyhow::anyhow!("bad key size"));
         }
         let mut k = [0u8; 32];
-        std::ptr::copy_nonoverlapping(out.pbData, k.as_mut_ptr(), 32);
-        windows::Win32::System::Memory::LocalFree(windows::Win32::System::Memory::HLOCAL(out.pbData as _));
+        core::ptr::copy_nonoverlapping(out.pbData as *const u8, k.as_mut_ptr(), 32);
+        LocalFree(out.pbData as *mut _);
         Ok(k)
     }
 }
 
 #[cfg(target_os = "windows")]
 fn dpapi_protect(data: &[u8], mode: SecureStoreMode) -> Result<Vec<u8>> {
-    use windows::Win32::Security::Cryptography::{CryptProtectData, CRYPT_DATA_BLOB, CRYPT_PROTECT_FLAGS};
-    let in_blob = CRYPT_DATA_BLOB {
-        cbData: data.len() as u32,
-        pbData: data.as_ptr() as *mut _,
-    };
-    let flags = match mode {
-        // CRYPTPROTECT_LOCAL_MACHINE = 0x4 — 任何机器上用户都能解密
-        SecureStoreMode::Machine => CRYPT_PROTECT_FLAGS(0x4),
-        // Roaming：仍走 User scope，但加额外 entropy（用 mode 字符串做 salt）
-        SecureStoreMode::Roaming => CRYPT_PROTECT_FLAGS(0x0),
-        _ => CRYPT_PROTECT_FLAGS(0x0),
+    let in_blob = CRYPT_DATA_BLOB { cbData: data.len() as u32, pbData: data.as_ptr() as *mut _ };
+    let flags: u32 = match mode {
+        SecureStoreMode::Machine => 0x4,
+        _ => 0x0,
     };
     let mut out = CRYPT_DATA_BLOB::default();
     unsafe {
-        let r = CryptProtectData(&in_blob, None, None, None, None, flags, &mut out);
-        if r.is_err() {
-            return Err(anyhow::anyhow!("CryptProtectData"));
-        }
+        dpapi_result(CryptProtectData(&in_blob, core::ptr::null(), core::ptr::null(), core::ptr::null_mut(), core::ptr::null_mut(), flags, &mut out))?;
         let mut v = vec![0u8; out.cbData as usize];
-        std::ptr::copy_nonoverlapping(out.pbData, v.as_mut_ptr(), v.len());
-        windows::Win32::System::Memory::LocalFree(windows::Win32::System::Memory::HLOCAL(out.pbData as _));
+        core::ptr::copy_nonoverlapping(out.pbData as *const u8, v.as_mut_ptr(), v.len());
+        LocalFree(out.pbData as *mut _);
         Ok(v)
     }
 }
 
 #[cfg(target_os = "windows")]
 fn dpapi_unprotect(data: &[u8], mode: SecureStoreMode) -> Result<[u8; 32]> {
-    use windows::Win32::Security::Cryptography::{CryptUnprotectData, CRYPT_DATA_BLOB, CRYPT_PROTECT_FLAGS};
-    let in_blob = CRYPT_DATA_BLOB {
-        cbData: data.len() as u32,
-        pbData: data.as_ptr() as *mut _,
-    };
-    let flags = match mode {
-        SecureStoreMode::Machine => CRYPT_PROTECT_FLAGS(0x4),
-        _ => CRYPT_PROTECT_FLAGS(0x0),
+    let in_blob = CRYPT_DATA_BLOB { cbData: data.len() as u32, pbData: data.as_ptr() as *mut _ };
+    let flags: u32 = match mode {
+        SecureStoreMode::Machine => 0x4,
+        _ => 0x0,
     };
     let mut out = CRYPT_DATA_BLOB::default();
     unsafe {
-        let r = CryptUnprotectData(&in_blob, None, None, None, None, flags, &mut out);
-        if r.is_err() {
-            return Err(anyhow::anyhow!("CryptUnprotectData"));
-        }
+        dpapi_result(CryptUnprotectData(&in_blob, core::ptr::null_mut(), core::ptr::null(), core::ptr::null_mut(), core::ptr::null_mut(), flags, &mut out))?;
         if out.cbData != 32 {
-            windows::Win32::System::Memory::LocalFree(windows::Win32::System::Memory::HLOCAL(out.pbData as _));
+            LocalFree(out.pbData as *mut _);
             return Err(anyhow::anyhow!("bad key size"));
         }
         let mut k = [0u8; 32];
-        std::ptr::copy_nonoverlapping(out.pbData, k.as_mut_ptr(), 32);
-        windows::Win32::System::Memory::LocalFree(windows::Win32::System::Memory::HLOCAL(out.pbData as _));
+        core::ptr::copy_nonoverlapping(out.pbData as *const u8, k.as_mut_ptr(), 32);
+        LocalFree(out.pbData as *mut _);
         Ok(k)
     }
 }

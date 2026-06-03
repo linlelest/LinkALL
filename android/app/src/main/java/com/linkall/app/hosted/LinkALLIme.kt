@@ -129,7 +129,7 @@ class LinkALLIme : InputMethodService() {
     fun switchToPreviousIme(): Boolean {
         return try {
             val imm = getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager ?: return false
-            imm.switchToPreviousInputMethod()
+            imm.switchToLastInputMethod(null)
         } catch (_: Throwable) { false }
     }
 

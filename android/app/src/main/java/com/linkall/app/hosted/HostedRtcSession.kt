@@ -113,13 +113,18 @@ object HostedRtcSession {
         val rtc = factory!!
         val config = PeerConnection.RTCConfiguration(serverIce)
         val newPc = rtc.createPeerConnection(config, object : PeerConnection.Observer {
-            override fun onIceCandidate(c: IceCandidate) {
-                ws?.send(stamp(JSONObject()
-                    .put("type", "ice")
-                    .put("to", controllerId)
-                    .put("data", JSONObject().put("candidate", c.sdp).put("sdpMid", c.sdpMid).put("sdpMLineIndex", c.sdpMLineIndex))
-                ))
-            }
+                override fun onIceCandidate(c: IceCandidate) {
+                    val data = JSONObject().apply {
+                        put("candidate", c.sdp)
+                        put("sdpMid", c.sdpMid)
+                        put("sdpMLineIndex", c.sdpMLineIndex)
+                    }
+                    ws?.send(stamp(JSONObject()
+                        .put("type", "ice")
+                        .put("to", controllerId)
+                        .put("data", data)
+                    ))
+                }
             override fun onAddStream(p0: MediaStream?) {}
             override fun onDataChannel(d: DataChannel) {
                 dc = d
@@ -135,13 +140,13 @@ object HostedRtcSession {
                 })
             }
             override fun onIceConnectionReceivingChange(p0: Boolean) {}
-            override fun onIceConnectionChange(s: PeerConnection.IceConnectionState?) {
-                Log.i(TAG, "ice: ${s?.name()}")
-                if (s == PeerConnection.IceConnectionState.FAILED || s == PeerConnection.IceConnectionState.CLOSED) {
-                    Log.w(TAG, "ice failed/closed, stopping session")
-                    stop()
+                override fun onIceConnectionChange(s: PeerConnection.IceConnectionState?) {
+                    Log.i(TAG, "ice: ${s?.name}")
+                    if (s == PeerConnection.IceConnectionState.FAILED || s == PeerConnection.IceConnectionState.CLOSED) {
+                        Log.w(TAG, "ice failed/closed, stopping session")
+                        stop()
+                    }
                 }
-            }
             override fun onIceCandidatesRemoved(p0: Array<out IceCandidate?>?) {}
             override fun onRemoveStream(p0: MediaStream?) {}
             override fun onIceGatheringChange(p0: PeerConnection.IceGatheringState?) {}

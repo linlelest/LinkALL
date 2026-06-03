@@ -128,13 +128,14 @@ pub async fn start_service(state: Arc<AppState>, app_handle: tauri::AppHandle) -
     state.set_status(|s| { s.running = true; s.last_error.clear(); });
     // 拉一次 ICE servers（含 TURN）
     state.refresh_ice_servers().await;
-    crate::signaling::start(state.clone(), app_handle).await?;
+    crate::signaling::start(state.clone(), app_handle.clone()).await?;
     crate::webrtc_host::start(state.clone(), app_handle).await?;
     Ok(())
 }
 
 pub async fn stop_service(state: Arc<AppState>) {
-    if let Some(sg) = state.signaling.lock().clone() {
+    let sig = state.signaling.lock().clone();
+    if let Some(sg) = sig {
         sg.stop().await;
     }
     state.set_status(|s| { s.running = false; s.signaling = "offline".into(); });

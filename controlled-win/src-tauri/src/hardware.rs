@@ -65,7 +65,7 @@ impl HwCapability {
     }
 }
 
-static PROBED: AtomicU8 = 0; // 0 = not probed, 1 = probed
+static PROBED: AtomicU8 = AtomicU8::new(0); // 0 = not probed, 1 = probed
 static CACHED: once_cell::sync::Lazy<parking_lot::Mutex<Option<HwCapability>>> =
     once_cell::sync::Lazy::new(|| parking_lot::Mutex::new(None));
 

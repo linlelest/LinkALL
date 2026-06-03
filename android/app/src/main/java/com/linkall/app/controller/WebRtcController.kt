@@ -76,7 +76,12 @@ class WebRtcController(private val appContext: Context) {
         val config = PeerConnection.RTCConfiguration(iceServers)
         val pc = rtc.createPeerConnection(config, object : PeerConnection.Observer {
             override fun onIceCandidate(c: IceCandidate) {
-                send(buildEnv("ice", target, JSONObject().put("candidate", c.sdp).put("sdpMid", c.sdpMid).put("sdpMLineIndex", c.sdpMLineIndex)))
+                val data = JSONObject().apply {
+                    put("candidate", c.sdp)
+                    put("sdpMid", c.sdpMid)
+                    put("sdpMLineIndex", c.sdpMLineIndex)
+                }
+                send(buildEnv("ice", target, data))
             }
             override fun onAddStream(p0: MediaStream?) {}
             override fun onDataChannel(d: DataChannel) {

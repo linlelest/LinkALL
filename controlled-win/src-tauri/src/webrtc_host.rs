@@ -12,6 +12,9 @@ use base64::Engine;
 use parking_lot::Mutex;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
+use std::io::Seek;
+use std::pin::Pin;
+use std::future::Future;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tauri::Emitter;
@@ -19,7 +22,6 @@ use webrtc::api::interceptor_registry::register_default_interceptors;
 use webrtc::api::media_engine::MediaEngine;
 use webrtc::api::APIBuilder;
 use webrtc::data_channel::data_channel_message::DataChannelMessage;
-use webrtc::ice::config::ContinualGatheringPolicy;
 use webrtc::ice_transport::ice_server::RTCIceServer;
 use webrtc::interceptor::registry::Registry;
 use webrtc::peer_connection::configuration::RTCConfiguration;
@@ -38,9 +40,9 @@ use crate::state::AppState;
 const DEFAULT_KEYFRAME_INTERVAL_SEC: u64 = 2;
 
 pub struct Session {
-    pub pc: Arc<webrtc::peer_connection::PeerConnection>,
+    pub pc: Arc<webrtc::peer_connection::RTCPeerConnection>,
     pub video_track: Arc<TrackLocalStaticSample>,
-    pub dc: Mutex<Option<Arc<webrtc::data_channel::RTCDataChannel>>>,
+    pub dc: Arc<Mutex<Option<Arc<webrtc::data_channel::RTCDataChannel>>>>,
     pub signaling: Arc<crate::signaling::Signaling>,
     pub controller_id: Mutex<Option<String>>,
     pub encoder: Mutex<Option<Arc<H264Encoder>>>,
@@ -59,6 +61,7 @@ pub struct Session {
     pub state: Arc<AppState>,
 }
 
+#[derive(Clone)]
 pub struct FileRecvState {
     pub transfer_id: String,
     pub name: String,
@@ -432,11 +435,11 @@ impl Session {
                 }
                 // 录制：如果正在录制，写入原始 H.264 NALU 到文件
                 crate::recording::write_frame(&ef.data);
-                let sample = webrtc::media::Sample::new(
-                    ef.data,
-                    webrtc::rtp_transceiver::rtp_codec::RTPCodecType::Video,
-                    90000,
-                );
+                let sample = webrtc::media::Sample {
+                    data: ef.data,
+                    duration: Duration::from_secs_f64(1.0 / 30.0),
+                    ..Default::default()
+                };
                 let _ = self.video_track.write_sample(&sample).await;
             }
         }
@@ -472,7 +475,6 @@ pub async fn accept_request(
     }
     let config = RTCConfiguration {
         ice_servers,
-        continual_gathering_policy: ContinualGatheringPolicy::GatherContinually,
         ..Default::default()
     };
     let pc = Arc::new(api.new_peer_connection(config).await?);
@@ -499,33 +501,39 @@ pub async fn accept_request(
     let dc_holder: Arc<Mutex<Option<Arc<webrtc::data_channel::RTCDataChannel>>>> = Arc::new(Mutex::new(None));
     let dc_holder_cb = dc_holder.clone();
     pc.on_data_channel(Box::new(move |dc: Arc<webrtc::data_channel::RTCDataChannel>| {
-        let dc = Arc::clone(&dc);
-        let app = app_handle.clone();
-        dc.on_open(Box::new(move || {
-            let _ = app.emit("log", "[dc] open");
-        }));
-        dc.on_message(Box::new(move |m: DataChannelMessage| {
-            let txt = String::from_utf8_lossy(&m.data).to_string();
-            let app2 = app_handle.clone();
-            tauri::async_runtime::spawn(async move {
-                if let Ok(v) = serde_json::from_str::<Value>(&txt) {
-                    if let Some(s) = SESSION.get() {
-                        let ty = v.get("type").and_then(|t| t.as_str()).unwrap_or("");
-                        if ty.starts_with("file_") {
-                            let _ = s.handle_file_msg(v).await;
-                        } else if ty == "cmd" {
-                            let data = v.get("data").cloned().unwrap_or(Value::Null);
-                            let _ = s.handle_cmd(data).await;
+        Box::pin(async move {
+            let dc = Arc::clone(&dc);
+            let app = app_handle.clone();
+            dc.on_open(Box::new(move || {
+                Box::pin(async move {
+                    let _ = app.emit("log", "[dc] open");
+                }) as Pin<Box<dyn Future<Output = ()> + Send>>
+            }));
+            dc.on_message(Box::new(move |m: DataChannelMessage| {
+                Box::pin(async move {
+                    let txt = String::from_utf8_lossy(&m.data).to_string();
+                    let app2 = app_handle.clone();
+                    tauri::async_runtime::spawn(async move {
+                        if let Ok(v) = serde_json::from_str::<Value>(&txt) {
+                            if let Some(s) = SESSION.get() {
+                                let ty = v.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                                if ty.starts_with("file_") {
+                                    let _ = s.handle_file_msg(v).await;
+                                } else if ty == "cmd" {
+                                    let data = v.get("data").cloned().unwrap_or(Value::Null);
+                                    let _ = s.handle_cmd(data).await;
+                                } else {
+                                    let _ = app2.emit("log", format!("[dc] unknown: {txt}"));
+                                }
+                            }
                         } else {
-                            let _ = app2.emit("log", format!("[dc] unknown: {txt}"));
+                            let _ = app2.emit("log", format!("[dc] raw: {txt}"));
                         }
-                    }
-                } else {
-                    let _ = app2.emit("log", format!("[dc] raw: {txt}"));
-                }
-            });
-        }));
-        *dc_holder_cb.lock() = Some(dc);
+                    });
+                }) as Pin<Box<dyn Future<Output = ()> + Send>>
+            }));
+            *dc_holder_cb.lock() = Some(dc);
+        }) as Pin<Box<dyn Future<Output = ()> + Send>>
     }));
 
     let signaling_h = match state.signaling.lock().clone() {
@@ -538,29 +546,32 @@ pub async fn accept_request(
             let s = signaling_h.clone();
             let to = controller_id_h.clone();
             tauri::async_runtime::spawn(async move {
-                s.send(json!({ "type": "ice", "to": to, "data": { "candidate": c.to_json() } }));
+                if let Ok(init) = c.to_json() {
+                    s.send(json!({ "type": "ice", "to": to, "data": { "candidate": init } }));
+                }
             });
         }
         Box::pin(async {})
     }));
 
     let app_handle2 = app_handle.clone();
-    pc.on_peer_connection_state(Box::new(move |s: RTCPeerConnectionState| {
-        let _ = app_handle2.emit("status", json!({ "pc": format!("{s:?}") }));
+    pc.on_peer_connection_state_change(Box::new(move |s: RTCPeerConnectionState| {
+        Box::pin(async move {
+            let _ = app_handle2.emit("status", json!({ "pc": format!("{s:?}") }));
+        }) as Pin<Box<dyn Future<Output = ()> + Send>>
     }));
 
     tauri::async_runtime::spawn(async move {
         let mut rtcp = rtp_sender;
-        while let Some(_pkt) = rtcp.read_rtcp().await {
+        while let Ok((_pkts, _)) = rtcp.read_rtcp().await {
             // noop
         }
-        let _: Result<(), Error> = Ok(());
     });
 
     let session = Arc::new(Session {
         pc,
         video_track,
-        dc: dc_holder,
+        dc: dc_holder.clone(),
         signaling: state.signaling.lock().clone().unwrap(),
         controller_id: Mutex::new(Some(controller_id.clone())),
         encoder: Mutex::new(None),

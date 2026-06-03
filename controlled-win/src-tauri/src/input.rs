@@ -19,7 +19,7 @@ fn map_button(b: i32) -> enigo::Button {
 
 fn vk_to_enigo(code: &str) -> Option<Key> {
     use enigo::Key::*;
-    Some(match code {
+    let result = match code {
         "Backspace" => Backspace,
         "Tab" => Tab,
         "Enter" | "NumpadEnter" => Return,
@@ -43,7 +43,6 @@ fn vk_to_enigo(code: &str) -> Option<Key> {
         "F1" => F1, "F2" => F2, "F3" => F3, "F4" => F4, "F5" => F5, "F6" => F6,
         "F7" => F7, "F8" => F8, "F9" => F9, "F10" => F10, "F11" => F11, "F12" => F12,
         _ => {
-            // 单字符
             if code.len() == 1 {
                 let ch = code.chars().next().unwrap();
                 if ch.is_ascii_alphabetic() || ch.is_ascii_digit() || ch.is_ascii_punctuation() || ch == ' ' {
@@ -52,7 +51,8 @@ fn vk_to_enigo(code: &str) -> Option<Key> {
             }
             return None;
         }
-    })
+    };
+    Some(result)
 }
 
 pub fn send_mouse(x_pct: f64, y_pct: f64, button: i32, down: bool) -> Result<()> {
@@ -86,5 +86,27 @@ pub fn send_wheel(dx: i32, dy: i32) -> Result<()> {
 pub fn send_text(t: &str) -> Result<()> {
     let mut e = ENIGO.lock();
     e.text(t)?;
+    Ok(())
+}
+
+pub fn click(button: i32, x: f32, y: f32, down: bool) -> Result<()> {
+    let mut e = ENIGO.lock();
+    e.move_mouse(x as i32, y as i32, enigo::Coordinate::Abs)?;
+    let dir = if down { Direction::Press } else { Direction::Release };
+    e.button(map_button(button), dir)?;
+    Ok(())
+}
+
+pub fn wheel(dy: i32) -> Result<()> {
+    send_wheel(0, dy)
+}
+
+pub fn key(code: i32, down: bool) -> Result<()> {
+    let dir = if down { Direction::Press } else { Direction::Release };
+    let mut e = ENIGO.lock();
+    let name = format!("VK_{code}");
+    if let Some(k) = vk_to_enigo(&name) {
+        e.key(k, dir)?;
+    }
     Ok(())
 }

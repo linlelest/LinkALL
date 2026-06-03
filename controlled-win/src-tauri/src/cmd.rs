@@ -5,7 +5,7 @@ use crate::state::AppState;
 use base64::{engine::general_purpose, Engine as _};
 use serde::Serialize;
 use std::sync::Arc;
-use tauri::State;
+use tauri::{Manager, State};
 
 #[derive(Serialize)]
 pub struct DeviceInfo {
@@ -332,7 +332,8 @@ pub async fn report_crash(
         "stack": stack,
     });
     let url = format!("{}/api/crash", state.current_server());
-    let _ = state.client.lock().http
+    let http = state.client.lock().http.clone();
+    let _ = http
         .post(&url)
         .json(&body)
         .send()
@@ -357,7 +358,8 @@ pub async fn upload_logs(
         "entries": entries,
     });
     let url = format!("{}/api/log", state.current_server());
-    let r = state.client.lock().http
+    let http = state.client.lock().http.clone();
+    let r = http
         .post(&url)
         .json(&body)
         .send()

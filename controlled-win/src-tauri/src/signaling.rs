@@ -94,18 +94,9 @@ pub async fn start(state: Arc<AppState>, app_handle: tauri::AppHandle) -> Result
             });
             if write.send(Message::Text(hello.to_string())).await.is_err() { continue; }
 
-            let write_task = {
-                let mut rx = rx.clone();
-                tokio::spawn(async move {
-                    while let Some(v) = rx.recv().await {
-                        if write.send(Message::Text(v.to_string())).await.is_err() { break; }
-                    }
-                })
-            };
-
             loop {
                 tokio::select! {
-                    _ = &mut stop_rx => { let _ = write_task.await; return; }
+                    _ = &mut stop_rx => { return; }
                     msg = read.next() => match msg {
                         Some(Ok(Message::Text(txt))) => {
                             let v: Value = match serde_json::from_str(&txt) { Ok(v) => v, Err(_) => continue };
@@ -121,9 +112,11 @@ pub async fn start(state: Arc<AppState>, app_handle: tauri::AppHandle) -> Result
                         }
                         None => break,
                     }
+                    Some(v) = rx.recv() => {
+                        if write.send(Message::Text(v.to_string())).await.is_err() { break; }
+                    }
                 }
             }
-            drop(write_task);
             state.set_status(|s| s.signaling = "offline".into());
             tokio::time::sleep(std::time::Duration::from_secs(3)).await;
         }
