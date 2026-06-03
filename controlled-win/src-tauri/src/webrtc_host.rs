@@ -391,38 +391,37 @@ impl Session {
             let h = frame.height;
 
             // 初始化 / 重配编码器
-            let mut enc_lock = self.encoder.lock();
-            let cur_b = *self.target_bitrate_kbps.lock();
-            let cur_f = *self.target_fps.lock();
-            if enc_lock.is_none() {
-                if let Ok(enc) = H264Encoder::new(w, h, cur_b.max(500), cur_f.max(5)) {
-                    *self.width.lock() = w;
-                    *self.height.lock() = h;
-                    *enc_lock = Some(enc);
+            let enc = {
+                let mut enc_lock = self.encoder.lock();
+                let cur_b = *self.target_bitrate_kbps.lock();
+                let cur_f = *self.target_fps.lock();
+                if enc_lock.is_none() {
+                    if let Ok(enc) = H264Encoder::new(w, h, cur_b.max(500), cur_f.max(5)) {
+                        *self.width.lock() = w;
+                        *self.height.lock() = h;
+                        *enc_lock = Some(enc);
+                    } else {
+                        continue;
+                    }
+                } else if *self.width.lock() != w || *self.height.lock() != h {
+                    *enc_lock = None;
+                    if let Ok(enc) = H264Encoder::new(w, h, cur_b.max(500), cur_f.max(5)) {
+                        *self.width.lock() = w;
+                        *self.height.lock() = h;
+                        *enc_lock = Some(enc);
+                    } else {
+                        continue;
+                    }
                 } else {
-                    continue;
+                    if let Some(enc) = enc_lock.as_ref() {
+                        let _ = enc.reconfig(cur_b.max(500), cur_f.max(5));
+                    }
                 }
-            } else if *self.width.lock() != w || *self.height.lock() != h {
-                // 分辨率变了 → openh264 不支持动态分辨率 → 重建
-                *enc_lock = None;
-                if let Ok(enc) = H264Encoder::new(w, h, cur_b.max(500), cur_f.max(5)) {
-                    *self.width.lock() = w;
-                    *self.height.lock() = h;
-                    *enc_lock = Some(enc);
-                } else {
-                    continue;
+                match enc_lock.as_ref() {
+                    Some(e) => e.clone(),
+                    None => continue,
                 }
-            } else {
-                // 分辨率未变 → reconfig bitrate/fps（不重建）
-                if let Some(enc) = enc_lock.as_ref() {
-                    let _ = enc.reconfig(cur_b.max(500), cur_f.max(5));
-                }
-            }
-            let enc = match enc_lock.as_ref() {
-                Some(e) => e.clone(),
-                None => continue,
             };
-            drop(enc_lock);
 
             // 编码 BGRA -> H.264 AVCC
             let encoded: Vec<EncodedFrame> = match enc.encode_bgra(&frame.data, w, h) {
@@ -518,15 +517,18 @@ pub async fn accept_request(
         let dc_holder = dc_holder_cb.clone();
         Box::pin(async move {
             let dc = Arc::clone(&dc);
+            let app_open = app.clone();
             dc.on_open(Box::new(move || {
+                let app = app_open.clone();
                 Box::pin(async move {
                     let _ = app.emit("log", "[dc] open");
                 }) as Pin<Box<dyn Future<Output = ()> + Send>>
             }));
             dc.on_message(Box::new(move |m: DataChannelMessage| {
+                let app_msg = app.clone();
                 Box::pin(async move {
                     let txt = String::from_utf8_lossy(&m.data).to_string();
-                    let app2 = app.clone();
+                    let app2 = app_msg.clone();
                     tauri::async_runtime::spawn(async move {
                         if let Ok(v) = serde_json::from_str::<Value>(&txt) {
                             if let Some(s) = SESSION.get() {
@@ -570,8 +572,9 @@ pub async fn accept_request(
 
     let app_handle2 = app_handle_for_state.clone();
     pc.on_peer_connection_state_change(Box::new(move |s: RTCPeerConnectionState| {
+        let app_h = app_handle2.clone();
         Box::pin(async move {
-            let _ = app_handle2.emit("status", json!({ "pc": format!("{s:?}") }));
+            let _ = app_h.emit("status", json!({ "pc": format!("{s:?}") }));
         }) as Pin<Box<dyn Future<Output = ()> + Send>>
     }));
 

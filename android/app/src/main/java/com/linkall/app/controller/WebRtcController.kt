@@ -81,7 +81,7 @@ class WebRtcController(private val appContext: Context) {
                     put("sdpMid", c.sdpMid)
                     put("sdpMLineIndex", c.sdpMLineIndex)
                 }
-                send(buildEnv("ice", target, data))
+                ws?.send(buildEnv("ice", target, data))
             }
             override fun onAddStream(p0: MediaStream?) {}
             override fun onDataChannel(d: DataChannel) {

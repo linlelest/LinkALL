@@ -51,11 +51,8 @@ impl<'a> YUVSource for I420Frame<'a> {
 }
 
 impl H264Encoder {
-    pub fn new(width: u32, height: u32, _bitrate_kbps: u32, _fps: u32) -> Result<Arc<Self>> {
-        let config = EncoderConfig {
-            width,
-            height,
-        };
+    pub fn new(width: u32, height: u32, bitrate_kbps: u32, fps: u32) -> Result<Arc<Self>> {
+        let config = EncoderConfig::new(width, height);
         let enc = Encoder::with_config(config)?;
         Ok(Arc::new(Self {
             enc: Mutex::new(enc),
@@ -66,14 +63,10 @@ impl H264Encoder {
         }))
     }
 
-    pub fn reconfig(&self, _bitrate_kbps: u32, _fps: u32) -> Result<()> {
-        // openh264 0.3.2 EncoderConfig only supports width/height;
-        // bitrate/framerate are auto-configured.  Drop & recreate is the only path.
+    pub fn reconfig(&self, bitrate_kbps: u32, fps: u32) -> Result<()> {
+        let _ = (bitrate_kbps, fps);
         let mut enc = self.enc.lock();
-        let config = EncoderConfig {
-            width: self.width,
-            height: self.height,
-        };
+        let config = EncoderConfig::new(self.width, self.height);
         *enc = Encoder::with_config(config)?;
         Ok(())
     }
@@ -84,7 +77,7 @@ impl H264Encoder {
         let mut enc = self.enc.lock();
         let frame = build_oh_frame(&yuv, w, h);
         let bitstream = enc.encode(&frame)?;
-        let raw = bitstream.as_ref().to_vec();
+        let raw = bitstream.into_vec();
         let nals = split_annexb(&raw);
         let mut avcc = BytesMut::new();
         for n in nals {

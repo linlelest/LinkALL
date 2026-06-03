@@ -71,20 +71,21 @@ pub async fn start(state: Arc<AppState>, app_handle: tauri::AppHandle) -> Result
     let device_code = device.device_code.clone();
 
     let app = app_handle.clone();
+    let state2 = state.clone();
     tauri::async_runtime::spawn(async move {
         loop {
-            state.set_status(|s| s.signaling = "connecting".into());
+            state2.set_status(|s| s.signaling = "connecting".into());
             let _ = app.emit("log", format!("[ws] connecting to {ws_url}"));
             let req = match tokio_tungstenite::connect_async(url.as_str()).await {
                 Ok((ws, _)) => ws,
                 Err(e) => {
                     let _ = app.emit("log", format!("[ws] connect failed: {e}"));
-                    state.set_status(|s| s.signaling = "offline".into());
+                    state2.set_status(|s| s.signaling = "offline".into());
                     tokio::time::sleep(std::time::Duration::from_secs(3)).await;
                     continue;
                 }
             };
-            state.set_status(|s| s.signaling = "online".into());
+            state2.set_status(|s| s.signaling = "online".into());
             let _ = app.emit("log", "[ws] connected");
             let (mut write, mut read) = req.split();
 
@@ -104,7 +105,7 @@ pub async fn start(state: Arc<AppState>, app_handle: tauri::AppHandle) -> Result
                                 handle_incoming(&app, &v).await;
                             }
                             Some(Ok(Message::Ping(_))) => {}
-                            Some(Ok(_)) => {}
+                            Some(Ok(Message::Pong(_))) => {}
                             Some(Ok(Message::Binary(_))) => {}
                             Some(Ok(Message::Close(_))) => return,
                             Some(Err(e)) => {
@@ -121,7 +122,7 @@ pub async fn start(state: Arc<AppState>, app_handle: tauri::AppHandle) -> Result
                     }
                 }
             }
-            state.set_status(|s| s.signaling = "offline".into());
+            state2.set_status(|s| s.signaling = "offline".into());
             tokio::time::sleep(std::time::Duration::from_secs(3)).await;
         }
     });
