@@ -28,7 +28,7 @@ jobs:
         with:
           go-version: '1.24.3'
           cache-dependency-path: server/go.sum
-      - name: Server: go vet + go build
+      - name: "Server: go vet + go build"
         working-directory: server
         run: |
           go mod download
@@ -44,20 +44,20 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           version: 9
-      - name: Web: install + type check
+      - name: "Web: install + type check"
         working-directory: web
         run: |
           pnpm install --frozen-lockfile
           pnpm run check
-      - name: Web: build (smoke test)
+      - name: "Web: build (smoke test)"
         working-directory: web
         run: pnpm run build
-      - name: Admin: install + type check
+      - name: "Admin: install + type check"
         working-directory: admin
         run: |
           pnpm install --frozen-lockfile
           pnpm run check
-      - name: Admin: build (smoke test)
+      - name: "Admin: build (smoke test)"
         working-directory: admin
         run: pnpm run build
 
@@ -71,7 +71,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: controlled-win/src-tauri -> target
-      - name: Tauri: cargo check (lib only, no full Tauri build)
+      - name: "Tauri: cargo check (lib only, no full Tauri build)"
         working-directory: controlled-win/src-tauri
         run: cargo check --locked --lib
 
@@ -90,6 +90,6 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
-      - name: Android: compileDebugKotlin (no APK)
+      - name: "Android: compileDebugKotlin (no APK)"
         working-directory: android
         run: ./gradlew :app:compileDebugKotlin --no-daemon --stacktrace
