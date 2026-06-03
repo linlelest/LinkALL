@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { t } from '../i18n';
+  import { t } from '../../i18n';
   interface Props { open: boolean; title?: string; onclose?: () => void; }
   let { open = $bindable(), title = '', onclose }: Props = $props();
   function close() { open = false; onclose?.(); }

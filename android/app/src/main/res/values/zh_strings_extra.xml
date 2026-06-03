@@ -1,7 +1,9 @@
-# Strings (zh-CN)
-app_name=LinkALL
-ime_name=LinkALL 输入法
-ime_subtype=英文（US）
-notify_channel_hosted=LinkALL 被控服务
-notify_hosted_title=LinkALL 正在共享屏幕
-notify_hosted_text=设备 %1$s 处于可被控制状态
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">LinkALL</string>
+    <string name="ime_name">LinkALL 输入法</string>
+    <string name="ime_subtype">英文（US）</string>
+    <string name="notify_channel_hosted">LinkALL 被控服务</string>
+    <string name="notify_hosted_title">LinkALL 正在共享屏幕</string>
+    <string name="notify_hosted_text">设备 %1$s 处于可被控制状态</string>
+</resources>
