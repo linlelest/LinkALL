@@ -288,7 +288,7 @@ function Invoke-LocalBuild {
     if (Test-Command 'cargo') {
         $avail += @{Name='tauri';Label=(T 'Windows 被控端' 'Win Host');Cmd='npm run tauri build';Dir=Join-Path $rootDir 'controlled-win'}
     }
-    if ((Test-Command 'java') -and (Test-Path (Join-Path $rootDir 'android' 'gradlew'))) {
+    if ((Test-Command 'java') -and (Test-Path (Join-Path (Join-Path $rootDir 'android') 'gradlew'))) {
         $avail += @{Name='android';Label='Android';Cmd='.\gradlew :app:assembleDebug';Dir=Join-Path $rootDir 'android'}
     }
     if (Test-Command 'pnpm') {
@@ -454,7 +454,7 @@ function Invoke-GitHubActions {
     if (-not $yn) { $branch = Read-Host (T '  输入分支名: ' '  Enter branch name: ') }
 
     # create workflows if needed
-    $wfDir = Join-Path $rootDir '.github' 'workflows'
+    $wfDir = Join-Path (Join-Path $rootDir '.github') 'workflows'
     if (!(Test-Path $wfDir)) {
         Warn (T '未找到 .github/workflows' '.github/workflows not found')
         $yn = Confirm-YesNo (T '  创建基础 CI workflow? (y/N)' '  Create basic CI workflow? (y/N)')
