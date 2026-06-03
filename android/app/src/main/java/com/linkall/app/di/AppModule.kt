@@ -21,7 +21,7 @@ import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import java.util.concurrent.TimeUnit
 
 val appModule = module {
-    single { Prefs(androidContext()) }
+    single { Prefs.get(androidContext()) }
     single { Json { ignoreUnknownKeys = true; encodeDefaults = true } }
     single {
         val log = HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BASIC }
@@ -44,8 +44,8 @@ val appModule = module {
             .create(ApiService::class.java)
     }
     single { AppDatabase.build(androidContext()) }
-    single { AuthRepo(get(), get(), get()) }
-    single { DeviceRepo(get(), get()) }
+    single { AuthRepo(get(), get()) }
+    single { DeviceRepo(get(), get(), get()) }
     single { AnnouncementRepo(get(), get()) }
     single { OtaRepo(get(), get()) }
     single { AdminRepo(get()) }

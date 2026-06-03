@@ -18,6 +18,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -40,6 +41,7 @@ fun AdminScreen() {
     var ota by remember { mutableStateOf<OtaInfo?>(null) }
     var latest by remember { mutableStateOf<Announcement?>(null) }
     var err by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         runCatching {
@@ -89,11 +91,13 @@ fun AdminScreen() {
         }
 
         PrimaryButton("刷新", modifier = Modifier.fillMaxWidth()) {
-            runCatching {
-                stats = repo.stats()
-                ota = repo.ota()
-                latest = repo.announcements().firstOrNull()
-            }.onFailure { err = it.message }
+            scope.launch {
+                runCatching {
+                    stats = repo.stats()
+                    ota = repo.ota()
+                    latest = repo.announcements().firstOrNull()
+                }.onFailure { err = it.message }
+            }
         }
     }
 }

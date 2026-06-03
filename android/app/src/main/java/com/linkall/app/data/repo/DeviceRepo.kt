@@ -11,7 +11,8 @@ import com.linkall.app.util.Prefs
 
 class DeviceRepo(
     private val api: ApiService,
-    private val prefs: Prefs
+    private val prefs: Prefs,
+    private val db: AppDatabase
 ) {
     private val dao get() = db.devices()
 

@@ -15,21 +15,27 @@ import androidx.security.crypto.MasterKey
 class Prefs private constructor(ctx: Context) {
 
     private val encrypted: Boolean
-    private val sp: SharedPreferences = try {
-        val key = MasterKey.Builder(ctx)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .build()
-        EncryptedSharedPreferences.create(
-            ctx,
-            "linkall_secure",
-            key,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-        ).also { encrypted = true }
-    } catch (e: Throwable) {
-        Log.e(TAG, "EncryptedSharedPreferences unavailable — storing secrets in plaintext!", e)
-        encrypted = false
-        ctx.getSharedPreferences("linkall", Context.MODE_PRIVATE)
+    private val sp: SharedPreferences
+
+    init {
+        val result = try {
+            val key = MasterKey.Builder(ctx)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
+            val prefs = EncryptedSharedPreferences.create(
+                ctx,
+                "linkall_secure",
+                key,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+            true to prefs
+        } catch (e: Throwable) {
+            Log.e(TAG, "EncryptedSharedPreferences unavailable — storing secrets in plaintext!", e)
+            false to ctx.getSharedPreferences("linkall", Context.MODE_PRIVATE)
+        }
+        encrypted = result.first
+        sp = result.second
     }
 
     private fun requireEncrypted() {

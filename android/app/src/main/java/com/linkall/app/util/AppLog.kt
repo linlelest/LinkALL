@@ -5,6 +5,8 @@ import android.os.Build
 import android.util.Log
 import com.linkall.app.controller.PrefsHolder
 import kotlinx.coroutines.CoroutineScope
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
@@ -205,7 +207,7 @@ object AppLog {
     private fun postJson(url: String, body: JSONObject) {
         val req = okhttp3.Request.Builder()
             .url(url)
-            .post(okhttp3.RequestBody.create("application/json; charset=utf-8".toMediaType(), body.toString()))
+            .post(body.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
             .build()
         val client = okhttp3.OkHttpClient.Builder()
             .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
@@ -214,6 +216,3 @@ object AppLog {
         client.newCall(req).execute().use { /* ignore */ }
     }
 }
-
-// Kotlin extension to MediaType
-private fun String.toMediaType(): okhttp3.MediaType = okhttp3.MediaType.parse(this)!!

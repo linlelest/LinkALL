@@ -107,7 +107,7 @@ object KeyMap {
         "CapsLock" -> KeyEvent.KEYCODE_CAPS_LOCK
         "NumLock" -> KeyEvent.KEYCODE_NUM_LOCK
         "ScrollLock" -> KeyEvent.KEYCODE_SCROLL_LOCK
-        "PrintScreen" -> KeyEvent.KEYCODE_PRINTSCREEN
+        "PrintScreen" -> 283 // KeyEvent.KEYCODE_PRINTSCREEN
         "Pause", "Break" -> KeyEvent.KEYCODE_BREAK
         "ContextMenu" -> KeyEvent.KEYCODE_MENU
         // 字母

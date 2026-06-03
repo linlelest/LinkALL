@@ -24,6 +24,7 @@ import org.webrtc.IceCandidate
 import org.webrtc.MediaConstraints
 import org.webrtc.MediaStream
 import org.webrtc.PeerConnection
+import org.webrtc.PeerConnectionDependencies
 import org.webrtc.PeerConnectionFactory
 import org.webrtc.RtpReceiver
 import org.webrtc.SdpObserver
@@ -72,39 +73,41 @@ class WebRtcController {
             .createPeerConnectionFactory()
         iceServers.add(PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer())
         val rtc = factory!!
-        val pc = rtc.createPeerConnection(iceServers, MediaConstraints())!!
+        val config = PeerConnection.RTCConfiguration(iceServers)
+        val deps = PeerConnectionDependencies.builder()
+            .setObserver(object : PeerConnection.Observer {
+                override fun onIceCandidate(c: IceCandidate) {
+                    send(buildEnv("ice", target, JSONObject().put("candidate", c.sdp).put("sdpMid", c.sdpMid).put("sdpMLineIndex", c.sdpMLineIndex)))
+                }
+                override fun onAddStream(p0: MediaStream?) {}
+                override fun onDataChannel(d: DataChannel) {
+                    dc = d
+                    d.registerObserver(object : DataChannel.Observer {
+                        override fun onBufferedAmountChange(p0: Long) {}
+                        override fun onStateChange() { Log.i(TAG, "dc state: ${d.state()}") }
+                        override fun onMessage(buf: DataChannel.Buffer) {
+                            val bytes = ByteArray(buf.data.remaining())
+                            buf.data.get(bytes)
+                            Log.i(TAG, "dc msg: " + String(bytes))
+                        }
+                    })
+                }
+                override fun onIceConnectionReceivingChange(p0: Boolean) {}
+                override fun onIceConnectionStateChange(s: PeerConnection.IceConnectionState) {
+                    status = "ice:$s"
+                }
+                override fun onIceGatheringStateChange(p0: PeerConnection.IceGatheringState?) {}
+                override fun onAddTrack(p0: RtpReceiver?, p1: Array<out MediaStream>?) {
+                    val track = p0?.track() as? VideoTrack ?: return
+                    Log.i(TAG, "onAddTrack: ${track.id()}")
+                }
+                override fun onRemoveTrack(p0: RtpReceiver?) {}
+                override fun onSignalingChange(p0: PeerConnection.SignalingState?) {}
+                override fun onRenegotiationNeeded() {}
+            })
+            .createPeerConnectionDependencies()
+        val pc = rtc.createPeerConnection(config, deps)!!
         this.pc = pc
-        pc.setObserver(object : PeerConnection.Observer {
-            override fun onIceCandidate(c: IceCandidate) {
-                send(buildEnv("ice", target, JSONObject().put("candidate", c.sdp).put("sdpMid", c.sdpMid).put("sdpMLineIndex", c.sdpMLineIndex)))
-            }
-            override fun onAddStream(p0: MediaStream?) {}
-            override fun onDataChannel(d: DataChannel) {
-                dc = d
-                d.registerObserver(object : DataChannel.Observer {
-                    override fun onBufferedAmountChange(p0: Long) {}
-                    override fun onStateChange() { Log.i(TAG, "dc state: ${d.state()}") }
-                    override fun onMessage(buf: DataChannel.Buffer) {
-                        val bytes = ByteArray(buf.data.remaining())
-                        buf.data.get(bytes)
-                        Log.i(TAG, "dc msg: " + String(bytes))
-                    }
-                })
-            }
-            override fun onIceConnectionReceivingChange(p0: Boolean) {}
-            override fun onIceConnectionStateChange(s: PeerConnection.IceConnectionState) {
-                status = "ice:$s"
-            }
-            override fun onIceGatheringStateChange(p0: PeerConnection.IceGatheringState?) {}
-            override fun onAddTrack(p0: RtpReceiver?, p1: Array<out MediaStream>?) {
-                val track = p0?.track() as? VideoTrack ?: return
-                // renderer 由调用方在 attachRenderer 时绑定
-                Log.i(TAG, "onAddTrack: ${track.id()}")
-            }
-            override fun onRemoveTrack(p0: RtpReceiver?) {}
-            override fun onSignalingChange(p0: PeerConnection.SignalingState?) {}
-            override fun onRenegotiationNeeded() {}
-        })
         dc = pc.createDataChannel("control", DataChannel.Init())
 
         scope.launch {

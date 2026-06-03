@@ -138,5 +138,5 @@ object WebRtcHost {
         override fun onSetFailure(p0: String?) {}
     }
 
-    companion object { const val TAG = "LinkALL/WebRtcHost" }
+    const val TAG = "LinkALL/WebRtcHost"
 }
