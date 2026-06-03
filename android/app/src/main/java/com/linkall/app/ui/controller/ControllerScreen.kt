@@ -23,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -43,7 +44,8 @@ import org.webrtc.VideoTrack
 @Composable
 fun ControllerScreen() {
     val scope = rememberCoroutineScope()
-    val controller = remember { WebRtcController() }
+    val ctx = LocalContext.current
+    val controller = remember { WebRtcController(ctx) }
     var target by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var mode by remember { mutableStateOf("anonymous") }

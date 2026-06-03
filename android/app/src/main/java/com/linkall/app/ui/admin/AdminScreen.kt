@@ -20,6 +20,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -77,7 +78,7 @@ fun AdminScreen() {
             Text(stringResource(R.string.admin_ota), color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(4.dp))
             if (ota != null) {
-                MonoText("has_update=${ota!!.hasUpdate} version=${ota!!.version} force=${ota!!.forceUpdate}")
+                MonoText("has_update=${ota!!.has_update} version=${ota!!.version} force=${ota!!.forceUpdate}")
             } else MutedText("（未拉取）")
         }
 

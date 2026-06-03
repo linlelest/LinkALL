@@ -5,6 +5,7 @@ import android.util.Log
 import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import com.linkall.app.controller.InputInjector
 import com.linkall.app.controller.KeyModifier
 
@@ -127,9 +128,9 @@ class LinkALLIme : InputMethodService() {
      */
     fun switchToPreviousIme(): Boolean {
         return try {
-            val imm = getSystemService(INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
-            imm?.switchToPreviousInputMethod()
-        } catch (_: Throwable) { false } == true
+            val imm = getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager ?: return false
+            imm.switchToPreviousInputMethod()
+        } catch (_: Throwable) { false }
     }
 
     companion object {

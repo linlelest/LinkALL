@@ -2,6 +2,7 @@ package com.linkall.app.hosted
 
 import android.content.ClipData
 import android.content.Context
+import android.content.Intent
 import android.util.Log
 import com.linkall.app.controller.InputInjector
 import com.linkall.app.controller.KeyMap
@@ -24,7 +25,6 @@ import org.webrtc.IceCandidate
 import org.webrtc.MediaConstraints
 import org.webrtc.MediaStream
 import org.webrtc.PeerConnection
-import org.webrtc.PeerConnectionDependencies
 import org.webrtc.PeerConnectionFactory
 import org.webrtc.RtpReceiver
 import org.webrtc.SdpObserver
@@ -97,7 +97,7 @@ object HostedRtcSession {
         // 确保 ScreenCaptureService 不会被上一会话占用
         appContext?.let { stopScreenCaptureIfRunning(it) }
 
-        WebRtcHost.ensureFactory()
+        WebRtcHost.ensureFactory(ctx)
         factory = WebRtcHost.factory
         videoTrack = WebRtcHost.createVideoTrack()
         egl = EglBase.create()
@@ -112,45 +112,44 @@ object HostedRtcSession {
         }
         val rtc = factory!!
         val config = PeerConnection.RTCConfiguration(serverIce)
-        val deps = PeerConnectionDependencies.builder()
-            .setObserver(object : PeerConnection.Observer {
-                override fun onIceCandidate(c: IceCandidate) {
-                    ws?.send(stamp(JSONObject()
-                        .put("type", "ice")
-                        .put("to", controllerId)
-                        .put("data", JSONObject().put("candidate", c.sdp).put("sdpMid", c.sdpMid).put("sdpMLineIndex", c.sdpMLineIndex))
-                    ))
-                }
-                override fun onAddStream(p0: MediaStream?) {}
-                override fun onDataChannel(d: DataChannel) {
-                    dc = d
-                    d.registerObserver(object : DataChannel.Observer {
-                        override fun onBufferedAmountChange(p0: Long) {}
-                        override fun onStateChange() { Log.i(TAG, "dc state: ${d.state()}") }
-                        override fun onMessage(buf: DataChannel.Buffer) {
-                            val bytes = ByteArray(buf.data.remaining())
-                            buf.data.get(bytes)
-                            val s = String(bytes)
-                            handleDataChannelMessage(s)
-                        }
-                    })
-                }
-                override fun onIceConnectionReceivingChange(p0: Boolean) {}
-                override fun onIceConnectionStateChange(s: PeerConnection.IceConnectionState) {
-                    Log.i(TAG, "ice: $s")
-                    if (s == PeerConnection.IceConnectionState.FAILED || s == PeerConnection.IceConnectionState.CLOSED) {
-                        Log.w(TAG, "ice failed/closed, stopping session")
-                        stop()
+        val newPc = rtc.createPeerConnection(config, object : PeerConnection.Observer {
+            override fun onIceCandidate(c: IceCandidate) {
+                ws?.send(stamp(JSONObject()
+                    .put("type", "ice")
+                    .put("to", controllerId)
+                    .put("data", JSONObject().put("candidate", c.sdp).put("sdpMid", c.sdpMid).put("sdpMLineIndex", c.sdpMLineIndex))
+                ))
+            }
+            override fun onAddStream(p0: MediaStream?) {}
+            override fun onDataChannel(d: DataChannel) {
+                dc = d
+                d.registerObserver(object : DataChannel.Observer {
+                    override fun onBufferedAmountChange(p0: Long) {}
+                    override fun onStateChange() { Log.i(TAG, "dc state: ${d.state()}") }
+                    override fun onMessage(buf: DataChannel.Buffer) {
+                        val bytes = ByteArray(buf.data.remaining())
+                        buf.data.get(bytes)
+                        val s = String(bytes)
+                        handleDataChannelMessage(s)
                     }
+                })
+            }
+            override fun onIceConnectionReceivingChange(p0: Boolean) {}
+            override fun onIceConnectionChange(s: PeerConnection.IceConnectionState?) {
+                Log.i(TAG, "ice: ${s?.name()}")
+                if (s == PeerConnection.IceConnectionState.FAILED || s == PeerConnection.IceConnectionState.CLOSED) {
+                    Log.w(TAG, "ice failed/closed, stopping session")
+                    stop()
                 }
-                override fun onIceGatheringStateChange(p0: PeerConnection.IceGatheringState?) {}
-                override fun onAddTrack(p0: RtpReceiver?, p1: Array<out MediaStream>?) {}
-                override fun onRemoveTrack(p0: RtpReceiver?) {}
-                override fun onSignalingChange(p0: PeerConnection.SignalingState?) {}
-                override fun onRenegotiationNeeded() {}
-            })
-            .createPeerConnectionDependencies()
-        val newPc = rtc.createPeerConnection(config, deps)!!
+            }
+            override fun onIceCandidatesRemoved(p0: Array<out IceCandidate?>?) {}
+            override fun onRemoveStream(p0: MediaStream?) {}
+            override fun onIceGatheringChange(p0: PeerConnection.IceGatheringState?) {}
+            override fun onAddTrack(p0: RtpReceiver?, p1: Array<out MediaStream>?) {}
+            override fun onRemoveTrack(p0: RtpReceiver?) {}
+            override fun onSignalingChange(p0: PeerConnection.SignalingState?) {}
+            override fun onRenegotiationNeeded() {}
+        })!!
         videoTrack?.let { newPc.addTrack(it, listOf("ARDAMS")) }
         // 创建并添加音频 track（WebRTC 内部管理麦克风捕获）
         val audioConstraints = MediaConstraints()

@@ -1,5 +1,6 @@
 package com.linkall.app.hosted
 
+import android.content.Context
 import android.util.Log
 import org.webrtc.DataChannel
 import org.webrtc.IceCandidate
@@ -31,9 +32,9 @@ object WebRtcHost {
     private var videoSource: VideoSource? = null
     @Volatile private var running = false
 
-    fun ensureFactory() {
+    fun ensureFactory(ctx: Context) {
         if (factory != null) return
-        PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions.builder()
+        PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions.builder(ctx)
             .setEnableInternalTracer(false)
             .createInitializationOptions())
         factory = PeerConnectionFactory.builder().createPeerConnectionFactory()
@@ -66,10 +67,11 @@ object WebRtcHost {
                 width, height,
                 i420,                  // Y plane
                 width,                 // Y stride
-                i420.duplicate().position(width * height).slice(),  // U
+                (i420.duplicate().position(width * height) as java.nio.ByteBuffer).slice(),  // U
                 width / 2,
-                i420.duplicate().position(width * height + width * height / 4).slice(), // V
-                width / 2
+                (i420.duplicate().position(width * height + width * height / 4) as java.nio.ByteBuffer).slice(), // V
+                width / 2,
+                null                   // release callback
             )
             val frame = org.webrtc.VideoFrame(yuv, rotation, /* tsNs */ System.nanoTime())
             obs.onFrameCaptured(frame)
@@ -86,15 +88,12 @@ object WebRtcHost {
     fun addFrameSink(sink: org.webrtc.VideoSink) {
         if (!frameSinks.contains(sink)) {
             frameSinks.add(sink)
-            videoSource?.addSink(sink)
         }
     }
 
     @Synchronized
     fun removeFrameSink(sink: org.webrtc.VideoSink) {
-        if (frameSinks.remove(sink)) {
-            videoSource?.removeSink(sink)
-        }
+        frameSinks.remove(sink)
     }
 
     /**
@@ -107,10 +106,11 @@ object WebRtcHost {
                 width, height,
                 i420,
                 width,
-                i420.duplicate().position(width * height).slice(),
+                (i420.duplicate().position(width * height) as java.nio.ByteBuffer).slice(),
                 width / 2,
-                i420.duplicate().position(width * height + width * height / 4).slice(),
-                width / 2
+                (i420.duplicate().position(width * height + width * height / 4) as java.nio.ByteBuffer).slice(),
+                width / 2,
+                null
             )
             val frame = org.webrtc.VideoFrame(yuv, rotation, System.nanoTime())
             synchronized(frameSinks) {

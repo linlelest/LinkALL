@@ -147,7 +147,7 @@ fun HostedScreen(locale: String, onLocaleChange: (String) -> Unit) {
                     GhostButton(stringResource(R.string.hosted_quit), modifier = Modifier.weight(1f)) {
                         hosted.stop(ctx)
                         serviceOn = false
-                        deviceRepo.logout()
+                        scope.launch { deviceRepo.logout() }
                         refresh()
                     }
                 }

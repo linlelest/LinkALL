@@ -597,5 +597,3 @@ pub fn end_session(app_handle: Option<&tauri::AppHandle>) {
         crate::toolbar::hide_toolbar(h);
     }
 }
-
-}

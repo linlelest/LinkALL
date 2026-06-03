@@ -1,5 +1,6 @@
 package com.linkall.app.controller
 
+import android.content.Context
 import android.util.Base64
 import android.util.Log
 import com.linkall.app.controller.PrefsHolder
@@ -24,7 +25,6 @@ import org.webrtc.IceCandidate
 import org.webrtc.MediaConstraints
 import org.webrtc.MediaStream
 import org.webrtc.PeerConnection
-import org.webrtc.PeerConnectionDependencies
 import org.webrtc.PeerConnectionFactory
 import org.webrtc.RtpReceiver
 import org.webrtc.SdpObserver
@@ -42,7 +42,7 @@ import java.util.concurrent.TimeUnit
  *  4) onTrack 回调里把 VideoTrack 喂给 SurfaceViewRenderer
  *  5) 通过 DataChannel 发 mouse / key / cmd（自动加 ts + nonce 反重放）
  */
-class WebRtcController {
+class WebRtcController(private val appContext: Context) {
 
     @Volatile var status: String = "idle"
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -65,7 +65,7 @@ class WebRtcController {
         val wsUrl = httpBase.replace("http://", "ws://").replace("https://", "wss://") + "/ws/signaling"
 
         egl = EglBase.create()
-        PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions.builder()
+        PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions.builder(appContext)
             .setEnableInternalTracer(false).createInitializationOptions())
         factory = PeerConnectionFactory.builder()
             .setVideoEncoderFactory(DefaultVideoEncoderFactory(egl!!.eglBaseContext, true, true))
@@ -74,39 +74,38 @@ class WebRtcController {
         iceServers.add(PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer())
         val rtc = factory!!
         val config = PeerConnection.RTCConfiguration(iceServers)
-        val deps = PeerConnectionDependencies.builder()
-            .setObserver(object : PeerConnection.Observer {
-                override fun onIceCandidate(c: IceCandidate) {
-                    send(buildEnv("ice", target, JSONObject().put("candidate", c.sdp).put("sdpMid", c.sdpMid).put("sdpMLineIndex", c.sdpMLineIndex)))
-                }
-                override fun onAddStream(p0: MediaStream?) {}
-                override fun onDataChannel(d: DataChannel) {
-                    dc = d
-                    d.registerObserver(object : DataChannel.Observer {
-                        override fun onBufferedAmountChange(p0: Long) {}
-                        override fun onStateChange() { Log.i(TAG, "dc state: ${d.state()}") }
-                        override fun onMessage(buf: DataChannel.Buffer) {
-                            val bytes = ByteArray(buf.data.remaining())
-                            buf.data.get(bytes)
-                            Log.i(TAG, "dc msg: " + String(bytes))
-                        }
-                    })
-                }
-                override fun onIceConnectionReceivingChange(p0: Boolean) {}
-                override fun onIceConnectionStateChange(s: PeerConnection.IceConnectionState) {
-                    status = "ice:$s"
-                }
-                override fun onIceGatheringStateChange(p0: PeerConnection.IceGatheringState?) {}
-                override fun onAddTrack(p0: RtpReceiver?, p1: Array<out MediaStream>?) {
-                    val track = p0?.track() as? VideoTrack ?: return
-                    Log.i(TAG, "onAddTrack: ${track.id()}")
-                }
-                override fun onRemoveTrack(p0: RtpReceiver?) {}
-                override fun onSignalingChange(p0: PeerConnection.SignalingState?) {}
-                override fun onRenegotiationNeeded() {}
-            })
-            .createPeerConnectionDependencies()
-        val pc = rtc.createPeerConnection(config, deps)!!
+        val pc = rtc.createPeerConnection(config, object : PeerConnection.Observer {
+            override fun onIceCandidate(c: IceCandidate) {
+                send(buildEnv("ice", target, JSONObject().put("candidate", c.sdp).put("sdpMid", c.sdpMid).put("sdpMLineIndex", c.sdpMLineIndex)))
+            }
+            override fun onAddStream(p0: MediaStream?) {}
+            override fun onDataChannel(d: DataChannel) {
+                dc = d
+                d.registerObserver(object : DataChannel.Observer {
+                    override fun onBufferedAmountChange(p0: Long) {}
+                    override fun onStateChange() { Log.i(TAG, "dc state: ${d.state()}") }
+                    override fun onMessage(buf: DataChannel.Buffer) {
+                        val bytes = ByteArray(buf.data.remaining())
+                        buf.data.get(bytes)
+                        Log.i(TAG, "dc msg: " + String(bytes))
+                    }
+                })
+            }
+            override fun onIceConnectionReceivingChange(p0: Boolean) {}
+            override fun onIceConnectionChange(s: PeerConnection.IceConnectionState?) {
+                status = "ice:$s"
+            }
+            override fun onIceCandidatesRemoved(p0: Array<out IceCandidate?>?) {}
+            override fun onRemoveStream(p0: MediaStream?) {}
+            override fun onIceGatheringChange(p0: PeerConnection.IceGatheringState?) {}
+            override fun onAddTrack(p0: RtpReceiver?, p1: Array<out MediaStream>?) {
+                val track = p0?.track() as? VideoTrack ?: return
+                Log.i(TAG, "onAddTrack: ${track.id()}")
+            }
+            override fun onRemoveTrack(p0: RtpReceiver?) {}
+            override fun onSignalingChange(p0: PeerConnection.SignalingState?) {}
+            override fun onRenegotiationNeeded() {}
+        })!!
         this.pc = pc
         dc = pc.createDataChannel("control", DataChannel.Init())
 
