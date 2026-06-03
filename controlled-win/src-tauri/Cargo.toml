@@ -62,6 +62,7 @@ windows = { version = "0.58", features = [
   "Win32_System_Memory"
 ] }
 auto-launch = "0.5"
+mimalloc = { version = "0.1", default-features = false }
 
 [profile.release]
 panic = "abort"
@@ -69,15 +70,4 @@ codegen-units = 1
 lto = true
 opt-level = "s"
 strip = true
-# 增量构建友好：开发 profile 启用少量优化
 incremental = true
-
-# 体积优化：移除 debug symbols / panic 字符串（生产）
-# 已通过 strip + lto + opt-level="s" 覆盖 80%；如需极致压缩可加：
-#  - winres 设置图标 / version
-#  - UPX 压缩（msi/nsis 之后）
-
-# 运行时：Windows 端用 mimalloc 替换默认 allocator，能显著降低内存峰值
-# 但需要 feature-gate：避免 Linux 编译时拉 Windows-only 依赖
-[target.'cfg(windows)'.dependencies]
-mimalloc = { version = "0.1", default-features = false }

@@ -83,12 +83,12 @@ jobs:
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.7'
+          gradle-version: '8.9'
       - name: Generate wrapper (if missing)
         working-directory: android
         run: |
           if [ ! -f gradlew ]; then
-            gradle wrapper --gradle-version 8.7
+            gradle wrapper --gradle-version 8.9
             chmod +x gradlew
           fi
       - name: "Android: compileDebugKotlin (no APK)"

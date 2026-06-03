@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
+  import { get } from 'svelte/store';
   import { t } from '../i18n';
   import { api, apiBase, ApiError } from '../lib/api';
   import { token } from '../lib/auth';
@@ -389,16 +390,16 @@
                 </div>
                 <div class="flex items-center justify-between mt-1">
                   {#if t.done}
-                    <span class="text-green-400">✓ {$t('common.done')}</span>
+                    <span class="text-green-400">✓ {get(t)('common.done')}</span>
                   {:else if t.err}
                     <span class="text-rose-400">✗ {t.err}</span>
                     <button class="btn-ghost btn-xs" onclick={() => transfers = transfers.filter(x => x.id !== t.id)}>×</button>
                   {:else if t.paused}
-                    <button class="btn-ghost btn-xs" onclick={() => resumeTransfer(t.id)}>{$t('common.resume')}</button>
-                    <button class="btn-ghost btn-xs" onclick={() => cancelTransfer(t.id)}>{$t('common.cancel')}</button>
+                    <button class="btn-ghost btn-xs" onclick={() => resumeTransfer(t.id)}>{get(t)('common.resume')}</button>
+                    <button class="btn-ghost btn-xs" onclick={() => cancelTransfer(t.id)}>{get(t)('common.cancel')}</button>
                   {:else}
-                    <span class="text-dark-muted">{$t('common.transferring')}</span>
-                    <button class="btn-ghost btn-xs" onclick={() => cancelTransfer(t.id)}>{$t('common.pause')}</button>
+                    <span class="text-dark-muted">{get(t)('common.transferring')}</span>
+                    <button class="btn-ghost btn-xs" onclick={() => cancelTransfer(t.id)}>{get(t)('common.pause')}</button>
                   {/if}
                 </div>
               </div>
